@@ -1,0 +1,1781 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>reflection</title>
+<link rel="icon" href="data:,">
+<style>
+  :root {
+    --bg: #050506;
+    --fg: #d4d7dc;
+    --dim: #7b8088;
+    --line: rgba(255,255,255,.10);
+    --panel: rgba(10,10,12,.66);
+    --accent: #ffffff;
+    --rec: #ff4d4d;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --sans: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font: 12px/1.4 var(--sans); overflow: hidden; -webkit-font-smoothing: antialiased; }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; padding: 0; }
+  button:disabled { opacity: .35; cursor: default; }
+  button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible, a:focus-visible { outline: 1px solid var(--accent); outline-offset: 3px; }
+
+  /* chrome auto-hides when the pointer is idle; "clean" (U) hides it for good */
+  .chrome { transition: opacity .5s ease; }
+  body.idle .chrome, body.clean .chrome { opacity: 0; pointer-events: none; }
+  body.idle, body.clean { cursor: none; }
+
+  /* start screen */
+  #start { position: fixed; inset: 0; display: grid; place-items: center; background: var(--bg); z-index: 40; transition: opacity .7s ease; padding: 24px; }
+  #start.gone { opacity: 0; pointer-events: none; }
+  #start .box { text-align: center; max-width: 420px; }
+  #start h1 { font-weight: 300; font-size: 34px; letter-spacing: .32em; margin: 0 0 10px .32em; text-transform: lowercase; }
+  #start p { color: var(--dim); margin: 0 0 30px; }
+  #start .btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .btn { border: 1px solid var(--line); padding: 10px 22px; letter-spacing: .14em; text-transform: lowercase; transition: border-color .2s, background .2s, color .2s; display: inline-block; text-decoration: none; color: var(--fg); }
+  .btn:hover { border-color: var(--fg); }
+  .btn.primary { border-color: var(--fg); }
+  .btn.primary:hover { background: var(--fg); color: var(--bg); }
+  .btn.small { padding: 6px 14px; letter-spacing: .08em; }
+  #start .note { margin-top: 26px; font-size: 11px; color: var(--dim); opacity: .8; line-height: 1.6; }
+
+  /* top-left status + meter */
+  #status { position: fixed; left: 18px; top: 16px; display: flex; align-items: center; gap: 12px; color: var(--dim); font: 11px var(--mono); z-index: 5; }
+  #meter { display: flex; gap: 3px; align-items: flex-end; height: 16px; }
+  #meter i { width: 3px; height: 16px; background: var(--fg); transform-origin: bottom; transform: scaleY(.06); opacity: .85; }
+  #meter i:first-child { background: var(--rec); }
+
+  #toggle { position: fixed; right: 18px; top: 14px; z-index: 6; color: var(--dim); font: 11px var(--mono); letter-spacing: .1em; padding: 4px 0; }
+  #toggle:hover { color: var(--fg); }
+
+  /* panel */
+  #panel { position: fixed; right: 16px; top: 46px; width: 252px; max-height: calc(100vh - 130px); overflow: auto; padding: 14px 16px 12px; background: var(--panel); border: 1px solid var(--line); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); z-index: 5; scrollbar-width: thin; scrollbar-color: #333 transparent; }
+  #panel.closed { display: none; }
+  .tab[hidden] { display: none; }
+  .row { margin-bottom: 11px; }
+  .row .lab { display: flex; justify-content: space-between; color: var(--dim); margin-bottom: 4px; }
+  .row .lab b { font: 400 11px var(--mono); color: var(--fg); }
+  .cap { color: var(--dim); font: 10px var(--mono); letter-spacing: .12em; text-transform: lowercase; margin: 16px 0 10px; opacity: .75; }
+  input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 14px; margin: 0; background: transparent; cursor: pointer; }
+  input[type=range]::-webkit-slider-runnable-track { height: 1px; background: rgba(255,255,255,.22); }
+  input[type=range]::-moz-range-track { height: 1px; background: rgba(255,255,255,.22); }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 9px; height: 9px; margin-top: -4px; border-radius: 50%; background: var(--fg); border: 0; transition: transform .15s; }
+  input[type=range]::-moz-range-thumb { width: 9px; height: 9px; border-radius: 50%; background: var(--fg); border: 0; }
+  input[type=range]:hover::-webkit-slider-thumb { transform: scale(1.35); }
+  .seg { display: flex; border: 1px solid var(--line); }
+  .seg button { flex: 1; padding: 5px 0; color: var(--dim); text-transform: lowercase; }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button.on { color: var(--bg); background: var(--fg); }
+  .tabs { margin-bottom: 14px; }
+  .pre { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-bottom: 4px; }
+  .pre button { color: var(--dim); text-transform: lowercase; border-bottom: 1px solid transparent; padding: 2px 0; transition: color .2s; }
+  .pre button:hover { color: var(--fg); }
+  .pre button.on { color: var(--fg); border-bottom-color: var(--fg); }
+  .pals { display: flex; gap: 6px; }
+  .pals button { flex: 1; height: 14px; border: 1px solid transparent; opacity: .55; transition: opacity .2s; }
+  .pals button.on { opacity: 1; border-color: var(--fg); }
+  .pals button:hover { opacity: 1; }
+  select { width: 100%; background: rgba(255,255,255,.04); color: var(--fg); border: 1px solid var(--line); padding: 5px 6px; font: 11px var(--mono); border-radius: 0; margin-bottom: 8px; text-overflow: ellipsis; }
+  select option { background: #111; color: var(--fg); }
+  details { margin: 2px 0 12px; }
+  summary { cursor: pointer; color: var(--dim); list-style: none; padding: 2px 0 10px; }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "+ "; }
+  details[open] summary::before { content: "– "; }
+  summary:hover { color: var(--fg); }
+  .toggles { display: flex; justify-content: space-between; align-items: center; color: var(--dim); }
+  .toggles button { color: var(--dim); }
+  .toggles button.on { color: var(--fg); }
+  .keys { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); color: var(--dim); font: 10px var(--mono); letter-spacing: .04em; }
+  .hint { color: var(--dim); font-size: 11px; margin: 10px 0 0; line-height: 1.5; }
+  #fileName { color: var(--dim); font: 10px var(--mono); margin: 6px 0 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 14px; }
+
+  /* looks */
+  #chips { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; gap: 22px; z-index: 5; max-width: calc(100vw - 32px); overflow-x: auto; scrollbar-width: none; padding: 4px 8px; }
+  #chips::-webkit-scrollbar { display: none; }
+  #chips button { color: var(--dim); text-transform: lowercase; letter-spacing: .08em; white-space: nowrap; padding: 4px 0; border-bottom: 1px solid transparent; transition: color .2s, border-color .2s; }
+  #chips button:hover { color: var(--fg); }
+  #chips button.on { color: var(--fg); border-bottom-color: var(--fg); }
+
+  /* dock: listen / rec / takes */
+  #dock { position: fixed; left: 18px; bottom: calc(20px + env(safe-area-inset-bottom)); display: flex; gap: 20px; z-index: 5; font: 11px var(--mono); letter-spacing: .06em; }
+  #dock button { color: var(--dim); padding: 4px 0; display: inline-flex; align-items: center; gap: 7px; text-transform: lowercase; transition: color .2s; }
+  #dock button:hover, #dock button.on { color: var(--fg); }
+  #recBtn i { width: 8px; height: 8px; border-radius: 50%; background: var(--rec); display: inline-block; }
+  #recBtn.on { color: var(--rec); }
+  #recBtn.on i { border-radius: 1px; animation: pulse 1.2s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .35; } }
+  #recDot { position: fixed; right: 18px; bottom: 18px; width: 8px; height: 8px; border-radius: 50%; background: var(--rec); z-index: 5; display: none; animation: pulse 1.2s ease-in-out infinite; }
+  body.recording #recDot { display: block; }
+
+  /* takes / playback */
+  #takes { position: fixed; inset: 0; z-index: 30; display: none; place-items: center; background: rgba(5,5,6,.9); padding: 20px; }
+  #takes.open { display: grid; }
+  #takes .inner { width: min(980px, 100%); }
+  #takes video { width: 100%; max-height: 62vh; background: #000; display: block; border: 1px solid var(--line); }
+  #takes .bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+  #takes .bar .acts { display: flex; gap: 10px; }
+  #takeInfo { color: var(--dim); font: 11px var(--mono); }
+  #takeList { display: flex; gap: 18px; margin-top: 14px; flex-wrap: wrap; font: 11px var(--mono); }
+  #takeList button { color: var(--dim); border-bottom: 1px solid transparent; padding: 2px 0; }
+  #takeList button.on { color: var(--fg); border-bottom-color: var(--fg); }
+
+  #toast { position: fixed; left: 50%; top: 52px; transform: translateX(-50%); z-index: 50; background: var(--panel); border: 1px solid var(--line); backdrop-filter: blur(10px); padding: 8px 14px; color: var(--fg); opacity: 0; transition: opacity .4s; pointer-events: none; max-width: calc(100vw - 32px); text-align: center; }
+  #toast.show { opacity: 1; }
+
+  @media (max-width: 640px) {
+    #panel { left: 12px; right: 12px; width: auto; top: auto; bottom: 64px; max-height: 46vh; }
+    #chips { gap: 18px; }
+    #dock { bottom: auto; top: 40px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .chrome, #start { transition: none; } #recBtn.on i, #recDot { animation: none; } }
+</style>
+</head>
+<body>
+
+<canvas id="gl"></canvas>
+
+<div id="start">
+  <div class="box">
+    <h1>reflection</h1>
+    <p>you, weightless.</p>
+    <div class="btns">
+      <button class="btn primary" id="btnStart">start</button>
+      <button class="btn" id="btnDemo">demo</button>
+    </div>
+    <div class="note">uses your camera &amp; microphone, all inside your browser &mdash; nothing is uploaded.<br>a small face-detection model is downloaded once; it only finds where your mouth is.<br>wear headphones if you want to hear your voice through the effects.</div>
+  </div>
+</div>
+
+<div id="status" class="chrome"><div id="meter" title="voice · bass · mid · treble"><i></i><i></i><i></i><i></i></div><span id="statusText"></span></div>
+<button id="toggle" class="chrome" aria-expanded="true">controls</button>
+
+<aside id="panel" class="chrome" aria-label="controls">
+  <div class="seg tabs" id="tabs"></div>
+
+  <section class="tab" id="tab-visual">
+    <div class="row"><div class="lab"><span>surface</span></div><div class="seg" id="modes"></div></div>
+    <div id="sl-main"></div>
+    <div class="cap">motion</div>
+    <div id="sl-motion"></div>
+    <div class="row"><div class="lab"><span>palette</span></div><div class="pals" id="pals"></div></div>
+    <details>
+      <summary>more</summary>
+      <div id="sl-more"></div>
+    </details>
+    <div class="toggles"><span>mirror</span><button id="mirror">on</button></div>
+  </section>
+
+  <section class="tab" id="tab-sound" hidden>
+    <div class="cap" style="margin-top:0">voice preset</div>
+    <div class="pre" id="sndPresets"></div>
+    <div class="cap">source</div>
+    <div class="seg" id="srcSeg"></div>
+    <div id="fileName"></div>
+    <select id="selIn" aria-label="microphone input" title="microphone input"></select>
+    <select id="selOut" aria-label="output device" title="output device"></select>
+    <div class="cap">voice</div>
+    <div id="sl-voice"></div>
+    <div class="cap">tape</div>
+    <div id="sl-tape"></div>
+    <div class="cap">room</div>
+    <div id="sl-room"></div>
+    <div class="cap">bitcrush</div>
+    <div id="sl-crush"></div>
+    <div class="cap">levels</div>
+    <div id="sl-sound"></div>
+    <p class="hint"><b>listen</b> (bottom left) plays the processed voice. an interface's own direct-monitor knob is raw and unprocessed &mdash; turn it down toward <i>playback</i> to hear only the effect. hearing yourself always lags a little; the recording and visuals aren't affected.</p>
+  </section>
+
+  <div class="keys">H hide · U clean · F full · S save · R rec · T takes · P listen · 1–5 look</div>
+</aside>
+
+<nav id="chips" class="chrome" aria-label="looks"></nav>
+
+<div id="dock" class="chrome">
+  <button id="listenBtn" aria-pressed="false" title="hear the processed sound (P)">listen</button>
+  <button id="recBtn" aria-pressed="false" title="record video + processed audio (R)"><i></i><span id="recLabel">rec</span></button>
+  <button id="takesBtn" title="play back recordings (T)">takes</button>
+</div>
+<div id="recDot" title="recording"></div>
+
+<div id="takes" role="dialog" aria-label="recordings">
+  <div class="inner">
+    <video id="takeVideo" controls playsinline></video>
+    <div class="bar">
+      <span id="takeInfo"></span>
+      <div class="acts">
+        <a class="btn small" id="takeDl" download>download</a>
+        <button class="btn small" id="takeDel">delete</button>
+        <button class="btn small" id="takeClose">close</button>
+      </div>
+    </div>
+    <div id="takeList"></div>
+  </div>
+</div>
+
+<input type="file" id="filePick" accept="audio/*" hidden>
+<div id="toast" role="status"></div>
+
+<script>
+'use strict';
+/* =====================================================================
+   0. helpers
+   ===================================================================== */
+const $ = (s, r = document) => r.querySelector(s);
+const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+const lerp = (a, b, t) => a + (b - a) * t;
+const hexToRgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255);
+const fmtTime = s => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
+let toastTimer;
+function toast(msg, ms = 3200) {
+  const el = $('#toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), ms);
+}
+
+/* =====================================================================
+   1. params, palettes, looks (visual) and voice presets (sound)
+   ===================================================================== */
+const f2 = v => v.toFixed(2);
+const SLIDERS = [
+  // visual
+  { k: 'density', label: 'mesh detail',       min: 40, max: 200, step: 1,   g: 'main', fmt: v => Math.round(v) },
+  { k: 'depth',   label: 'depth',             min: 0,  max: 2.5, step: .01, g: 'main' },
+  { k: 'glow',    label: 'bloom',             min: 0,  max: 2,   step: .01, g: 'main' },
+  { k: 'hue',     label: 'color shift',       min: 0,  max: 1,   step: .01, g: 'main' },
+  { k: 'spin',    label: 'orbit',             min: 0,  max: 1,   step: .01, g: 'main' },
+  // motion: everything here is slow on purpose
+  { k: 'speed',   label: 'drift speed',       min: .05, max: 1.5, step: .01, g: 'motion' },
+  { k: 'drift',   label: 'float amount',      min: 0,  max: 2,   step: .01, g: 'motion' },
+  { k: 'sens',    label: 'audio sensitivity', min: 0,  max: 2,   step: .01, g: 'motion' },
+  { k: 'smooth',  label: 'smoothing',         min: 0,  max: 1,   step: .01, g: 'motion' },
+  { k: 'mosh',    label: 'datamosh',          min: 0,  max: 1,   step: .01, g: 'motion' },
+  { k: 'dissolve',label: 'voice push',        min: 0,  max: 1.5, step: .01, g: 'motion' },
+  { k: 'mglow',   label: 'motion glow',       min: 0,  max: 1,   step: .01, g: 'motion' },
+  // more
+  { k: 'video',   label: 'camera color',      min: 0,  max: 1,   step: .01, g: 'more' },
+  { k: 'split',   label: 'rgb split',         min: 0,  max: 1,   step: .01, g: 'more' },
+  // sound
+  { k: 'gate',    label: 'noise gate',        min: 0,  max: 1,   step: .01, g: 'voice' },
+  { k: 'comp',    label: 'compression',       min: 0,  max: 1,   step: .01, g: 'voice' },
+  { k: 'presence',label: 'presence',          min: 0,  max: 1,   step: .01, g: 'voice' },
+  { k: 'tape',    label: 'tape mix',          min: 0,  max: 1,   step: .01, g: 'tape' },
+  { k: 'wobble',  label: 'wow / flutter',     min: 0,  max: 1,   step: .01, g: 'tape' },
+  { k: 'age',     label: 'age',               min: 0,  max: 1,   step: .01, g: 'tape' },
+  { k: 'room',    label: 'room',              min: 0,  max: 1,   step: .01, g: 'room' },
+  { k: 'crush',   label: 'crush mix',         min: 0,  max: 1,   step: .01, g: 'crush' },
+  { k: 'bits',    label: 'bit depth',         min: 2,  max: 16,  step: .1,  g: 'crush', fmt: v => v.toFixed(1) },
+  { k: 'rate',    label: 'downsample',        min: 1,  max: 32,  step: .1,  g: 'crush', fmt: v => v.toFixed(1) + '×' },
+  { k: 'gain',    label: 'input gain',        min: 0,  max: 2,   step: .01, g: 'sound' },
+  { k: 'volume',  label: 'listen volume',     min: 0,  max: 1,   step: .01, g: 'sound' },
+];
+const GROUP_EL = { main: '#sl-main', motion: '#sl-motion', more: '#sl-more', voice: '#sl-voice', tape: '#sl-tape', room: '#sl-room', crush: '#sl-crush', sound: '#sl-sound' };
+const MODES = ['solid', 'x-ray', 'wire'];
+const PALETTES = [
+  { name: 'ion',    c: ['#1530ff', '#00f0ff', '#ff3df0'] },
+  { name: 'ember',  c: ['#4a0d00', '#ff5a1f', '#ffe9a8'] },
+  { name: 'acid',   c: ['#00ff9c', '#d4ff00', '#ff00aa'] },
+  { name: 'aurora', c: ['#0b3d91', '#17e3a1', '#f2ffd0'] },
+  { name: 'mono',   c: ['#505050', '#b8b8b8', '#ffffff'] },
+];
+
+// voice presets: the whole processing chain in one name
+const SOUND_PRESETS = {
+  'vhs voiceover': { gate: .5,  comp: .7,  presence: .55, tape: .85, wobble: .3,  age: .6,  room: .25, crush: .1,  bits: 11, rate: 1.5 },
+  'clean voice':   { gate: .45, comp: .55, presence: .5,  tape: 0,   wobble: 0,   age: 0,   room: .08, crush: 0,   bits: 12, rate: 1 },
+  'radio':         { gate: .5,  comp: .9,  presence: .8,  tape: .5,  wobble: .05, age: .9,  room: 0,   crush: .25, bits: 9,  rate: 3 },
+  'dream tape':    { gate: .35, comp: .5,  presence: .3,  tape: 1,   wobble: .8,  age: .45, room: .6,  crush: 0,   bits: 12, rate: 1 },
+  'crushed':       { gate: .4,  comp: .6,  presence: .5,  tape: .2,  wobble: .2,  age: .3,  room: .1,  crush: .9,  bits: 5,  rate: 8 },
+};
+const SOUND_NAMES = Object.keys(SOUND_PRESETS);
+
+const VISUAL_BASE = { mode: 0, palette: 4, mirror: true, density: 120, depth: .8, glow: .6, hue: 0, spin: .4,
+  speed: .5, drift: .6, sens: .8, smooth: .8, mosh: .7, mglow: .15, dissolve: 1, video: 1, split: .1 };
+const BASE = { ...VISUAL_BASE, ...SOUND_PRESETS['vhs voiceover'], gain: 1, volume: .8 };
+const VISUAL_KEYS = Object.keys(VISUAL_BASE);
+
+const LOOKS = {
+  'clear':  { mode: 0, palette: 4, video: 1,   glow: .5, depth: .8,  mosh: .7,  mglow: .1,  split: .05 },
+  'neon':   { mode: 1, palette: 0, video: .45, glow: 1,  depth: 1,   mosh: .8,  mglow: .3,  split: .2 },
+  'ember':  { mode: 0, palette: 1, video: .4,  glow: .9, depth: .9,  mosh: .85, mglow: .25, split: .1 },
+  'aurora': { mode: 0, palette: 3, video: .35, glow: 1,  depth: 1.1, mosh: .85, mglow: .3,  split: .1, spin: .3 },
+  'wire':   { mode: 2, palette: 4, video: .5,  glow: .8, depth: 1.2, mosh: .6,  mglow: .2,  split: .05 },
+};
+const LOOK_NAMES = Object.keys(LOOKS);
+const DISCRETE = new Set(['mode', 'palette', 'mirror', 'density']);   // snap instead of lerp
+
+const params = { ...BASE, ...LOOKS[LOOK_NAMES[0]] };
+let currentLook = LOOK_NAMES[0], currentSound = SOUND_NAMES[0];
+let target = null;   // lerp target while a look / preset transition is running
+
+try {
+  const saved = JSON.parse(localStorage.getItem('reflection.v4') || 'null');
+  if (saved && saved.params) {
+    for (const k in BASE) if (typeof saved.params[k] === typeof BASE[k]) params[k] = saved.params[k];
+    if (LOOKS[saved.look]) currentLook = saved.look;
+    if (SOUND_PRESETS[saved.sound]) currentSound = saved.sound;
+  }
+} catch (e) { /* storage unavailable */ }
+
+let saveTimer;
+function persist() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try { localStorage.setItem('reflection.v4', JSON.stringify({ params, look: currentLook, sound: currentSound })); } catch (e) {}
+  }, 300);
+}
+function loadDevPrefs() { try { return JSON.parse(localStorage.getItem('reflection.dev') || '{}'); } catch (e) { return {}; } }
+function saveDevPrefs(o) { try { localStorage.setItem('reflection.dev', JSON.stringify({ ...loadDevPrefs(), ...o })); } catch (e) {} }
+
+/* =====================================================================
+   2. audio engine
+      mic (L+R summed to mono) -> high-pass -> gate -> compressor -> EQ
+        -> bitcrusher -> tape (saturation / wow / hiss) -> room -> limiter
+        -> analyser (visuals) | listen (speakers) | recorder
+   ===================================================================== */
+const audio = { bass: 0, mid: 0, treble: 0, level: 0, slow: 0, voice: 0 };
+let audioCtx = null, analyser = null, freqData = null, voiceData = null;
+const fx = {};
+const snd = { source: 'demo', monitor: false, takesOpen: false, micOK: false, fileName: '', micLatency: 0 };
+const srcNodes = {};
+let micTracks = [], fileEl = null;
+const TAPE_BASE_DELAY = .010;
+const AUDIO_C = { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: { ideal: 2 } };   // raw signal: browser "enhancements" flatten the voice and the music
+const eff = { bits: 16, down: 1, crush: 0, tape: 0, wobble: 0, age: 0, levelsC: 64 };   // effective (audio-modulated) fx values: drive audio AND visuals
+
+/* --- worklets: soft bitcrusher + adaptive noise gate --- */
+function crusherWorklet() {
+  class Crusher extends AudioWorkletProcessor {
+    static get parameterDescriptors() {
+      return [
+        { name: 'bits', defaultValue: 16, minValue: 1, maxValue: 16, automationRate: 'k-rate' },
+        { name: 'down', defaultValue: 1, minValue: 1, maxValue: 64, automationRate: 'k-rate' },
+        { name: 'mix', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
+      ];
+    }
+    constructor() {
+      super();
+      this.b = 16; this.d = 1; this.m = 0;
+      this.ph = [0, 0]; this.hold = [0, 0]; this.lp = [0, 0];
+    }
+    process(inputs, outputs, p) {
+      const inp = inputs[0], out = outputs[0];
+      const bT = p.bits[0], dT = p.down[0], mT = p.mix[0];
+      const SHARP = 5;                                  // lower = rounder steps = "smoother" crunch
+      const norm = Math.tanh(.5 * SHARP);
+      for (let c = 0; c < out.length; c++) {
+        const x = inp.length ? inp[Math.min(c, inp.length - 1)] : null;
+        const o = out[c];
+        let b = this.b, d = this.d, m = this.m, ph = this.ph[c], hold = this.hold[c], lp = this.lp[c];
+        for (let i = 0; i < o.length; i++) {
+          b += (bT - b) * .0015; d += (dT - d) * .0015; m += (mT - m) * .0015;
+          const s = x ? x[i] : 0;
+          ph += 1;
+          if (ph >= d) {
+            ph -= d;
+            const L = Math.pow(2, b - 1);
+            const v = s * L, f = Math.floor(v), r = v - f - .5;
+            hold = (f + .5 + .5 * Math.tanh(r * SHARP) / norm) / L;
+          }
+          lp += (hold - lp) * Math.min(1, Math.max(.05, 1.4 / d));   // takes the edge off the stair-steps
+          o[i] = s * (1 - m) + lp * m;
+        }
+        this.ph[c] = ph; this.hold[c] = hold; this.lp[c] = lp;
+        if (c === out.length - 1) { this.b = b; this.d = d; this.m = m; }
+      }
+      return true;
+    }
+  }
+  registerProcessor('crusher', Crusher);
+}
+
+function gateWorklet() {
+  // downward expander that learns the room's noise floor, so it needs no threshold tuning
+  class Gate extends AudioWorkletProcessor {
+    static get parameterDescriptors() {
+      return [{ name: 'amount', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' }];
+    }
+    constructor() { super(); this.env = 0; this.floor = .002; this.g = 1; }
+    process(inputs, outputs, p) {
+      const inp = inputs[0], out = outputs[0];
+      if (!inp.length) return true;
+      const depth = p.amount[0] * .9;                   // up to ~ -20dB of reduction
+      for (let i = 0; i < inp[0].length; i++) {
+        let s = 0;
+        for (let c = 0; c < inp.length; c++) s = Math.max(s, Math.abs(inp[c][i]));
+        this.env += (s - this.env) * (s > this.env ? .02 : .0015);
+        this.floor += (this.env - this.floor) * (this.env < this.floor ? .0008 : .0000025);   // sinks fast, rises over ~8s
+        const open = this.env > Math.max(this.floor * 3, .0015);
+        const tgt = open ? 1 : 1 - depth;
+        this.g += (tgt - this.g) * (tgt > this.g ? .01 : .00015);   // quick open, ~140ms close: no chopped word endings
+        for (let c = 0; c < out.length; c++) out[c][i] = inp[Math.min(c, inp.length - 1)][i] * this.g;
+      }
+      return true;
+    }
+  }
+  registerProcessor('gate', Gate);
+}
+
+function noiseBuffer(secs) {
+  const b = audioCtx.createBuffer(1, Math.floor(audioCtx.sampleRate * secs), audioCtx.sampleRate);
+  const d = b.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  return b;
+}
+
+// a small, dark "booth": decorrelated noise tail plus a few early reflections
+function makeIR(secs) {
+  const sr = audioCtx.sampleRate, n = Math.floor(sr * secs);
+  const buf = audioCtx.createBuffer(2, n, sr);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = buf.getChannelData(ch);
+    let lp = 0;
+    for (let i = 0; i < n; i++) {
+      const t = i / n;
+      lp += ((Math.random() * 2 - 1) - lp) * (.32 - t * .26);       // darkens as it decays
+      d[i] = lp * Math.pow(1 - t, 3.4);
+    }
+    [.007, .013, .021, .031, .043].forEach((s, k) => { d[Math.floor((s + ch * .0023) * sr)] += (.55 - k * .08) * (k % 2 ? -1 : 1); });
+  }
+  return buf;
+}
+
+async function buildGraph() {
+  const ctx = audioCtx;
+  let worklets = false;
+  try {
+    const url = URL.createObjectURL(new Blob(['(' + crusherWorklet.toString() + ')();(' + gateWorklet.toString() + ')()'], { type: 'text/javascript' }));
+    await ctx.audioWorklet.addModule(url);
+    URL.revokeObjectURL(url);
+    worklets = true;
+  } catch (e) {
+    console.warn('audio worklets unavailable', e);
+    toast('gate + bitcrusher need AudioWorklet (localhost/https) — running without them', 5000);
+  }
+  const biq = (type, f, q = .7, g = 0) => { const n = ctx.createBiquadFilter(); n.type = type; n.frequency.value = f; n.Q.value = q; n.gain.value = g; return n; };
+
+  // entry. a mic arrives as 1-2 channels (an interface's input 1 is often left-only): sum them to one centred voice
+  fx.input = ctx.createGain();
+  fx.micSplit = ctx.createChannelSplitter(2);
+  fx.micSum = ctx.createGain(); fx.micSum.channelCount = 1; fx.micSum.channelCountMode = 'explicit';
+  fx.micSplit.connect(fx.micSum, 0); fx.micSplit.connect(fx.micSum, 1);
+  fx.micSum.connect(fx.input);
+
+  // 1. clean-up: rumble filter -> gate -> (voice activity tap) -> compressor -> EQ
+  fx.hpf = biq('highpass', 85);
+  fx.input.connect(fx.hpf);
+  let tail = fx.hpf;
+  if (worklets) { fx.gate = new AudioWorkletNode(ctx, 'gate'); tail.connect(fx.gate); tail = fx.gate; }
+
+  fx.voiceAn = ctx.createAnalyser();
+  fx.voiceAn.fftSize = 1024; fx.voiceAn.smoothingTimeConstant = .5;
+  fx.voiceAn.minDecibels = -85; fx.voiceAn.maxDecibels = -20;
+  voiceData = new Uint8Array(fx.voiceAn.frequencyBinCount);
+  tail.connect(fx.voiceAn);
+
+  fx.comp = ctx.createDynamicsCompressor();
+  fx.comp.knee.value = 10; fx.comp.attack.value = .006; fx.comp.release.value = .2;
+  fx.compMakeup = ctx.createGain();
+  tail.connect(fx.comp); fx.comp.connect(fx.compMakeup); tail = fx.compMakeup;
+
+  fx.mud = biq('peaking', 320, 1, 0);       // cut the boxy low-mids
+  fx.pres = biq('peaking', 3200, .9, 0);    // push the consonants forward
+  tail.connect(fx.mud); fx.mud.connect(fx.pres); tail = fx.pres;
+
+  // 2. bitcrusher
+  if (worklets) { fx.crusher = new AudioWorkletNode(ctx, 'crusher', { outputChannelCount: [2] }); tail.connect(fx.crusher); tail = fx.crusher; }
+
+  // 3. tape: dry/wet, saturation, thin top & bottom, wow/flutter (modulated delay), hiss
+  fx.tapeDry = ctx.createGain();
+  fx.tapeWet = ctx.createGain();
+  fx.drive = ctx.createGain();
+  fx.shaper = ctx.createWaveShaper();
+  const curve = new Float32Array(2048);
+  for (let i = 0; i < curve.length; i++) curve[i] = Math.tanh((i / 1023.5 - 1) * 3) / Math.tanh(3);
+  fx.shaper.curve = curve; fx.shaper.oversample = '2x';
+  fx.makeup = ctx.createGain();
+  fx.lp = biq('lowpass', 16000, .6); fx.lp2 = biq('lowpass', 16000, .6);   // two stages = a 24dB/oct roll-off, so a worn tape really goes dull
+  fx.hp = biq('highpass', 40);
+  // the modulated delay is the only latency added on purpose: just above the worst-case wobble excursion (~9.6ms)
+  fx.delay = ctx.createDelay(.1); fx.delay.delayTime.value = TAPE_BASE_DELAY;
+  fx.wowG = ctx.createGain(); fx.fluG = ctx.createGain(); fx.drfG = ctx.createGain();
+  [[.62, fx.wowG], [7.3, fx.fluG], [.13, fx.drfG]].forEach(([hz, g]) => {
+    const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = hz;
+    o.connect(g); g.connect(fx.delay.delayTime); o.start();
+  });
+  fx.tapeOut = ctx.createGain();
+  const hiss = ctx.createBufferSource(); hiss.buffer = noiseBuffer(2); hiss.loop = true;
+  const hissHp = biq('highpass', 3500);
+  fx.hissG = ctx.createGain(); fx.hissG.gain.value = 0;
+  hiss.connect(hissHp); hissHp.connect(fx.hissG); fx.hissG.connect(fx.tapeOut); hiss.start();
+
+  tail.connect(fx.tapeDry); fx.tapeDry.connect(fx.tapeOut);
+  tail.connect(fx.drive); fx.drive.connect(fx.shaper); fx.shaper.connect(fx.makeup);
+  fx.makeup.connect(fx.lp); fx.lp.connect(fx.lp2); fx.lp2.connect(fx.hp); fx.hp.connect(fx.delay); fx.delay.connect(fx.tapeWet);
+  fx.tapeWet.connect(fx.tapeOut);
+
+  // 4. room: short pre-delay into a convolver; this is also what spreads the mono voice across both speakers
+  fx.preLimit = ctx.createGain();
+  fx.verbPre = ctx.createDelay(.1); fx.verbPre.delayTime.value = .016;
+  fx.verb = ctx.createConvolver(); fx.verb.buffer = makeIR(.95);
+  fx.verbG = ctx.createGain(); fx.verbG.gain.value = 0;
+  fx.tapeOut.connect(fx.preLimit);
+  fx.tapeOut.connect(fx.verbPre); fx.verbPre.connect(fx.verb); fx.verb.connect(fx.verbG); fx.verbG.connect(fx.preLimit);
+
+  // 5. limiter -> master; the analyser listens AFTER the effects so the visuals show what you hear
+  fx.limiter = ctx.createDynamicsCompressor();
+  fx.limiter.threshold.value = -6; fx.limiter.knee.value = 6; fx.limiter.ratio.value = 12;
+  fx.limiter.attack.value = .003; fx.limiter.release.value = .12;
+  fx.master = ctx.createGain();
+  fx.preLimit.connect(fx.limiter); fx.limiter.connect(fx.master);
+
+  analyser = ctx.createAnalyser();
+  analyser.fftSize = 2048; analyser.smoothingTimeConstant = .6;
+  analyser.minDecibels = -85; analyser.maxDecibels = -20;
+  freqData = new Uint8Array(analyser.frequencyBinCount);
+  fx.master.connect(analyser);
+
+  fx.monitor = ctx.createGain(); fx.monitor.gain.value = 0;
+  fx.master.connect(fx.monitor); fx.monitor.connect(ctx.destination);
+  fx.recDest = ctx.createMediaStreamDestination();
+  fx.master.connect(fx.recDest);
+}
+
+/* --- generative demo track (real audio, so effects, listen and rec all work without a mic) --- */
+const demo = { out: null, timer: null, next: 0, step: 0 };
+const ROOTS = [55, 43.65, 65.41, 49];
+const SCALE = [0, 3, 7, 10, 12, 15, 19];
+
+function voice(type, freq, when, a, d, peak, cutoff, freqEnd) {
+  const ctx = audioCtx;
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, when);
+  if (freqEnd) o.frequency.exponentialRampToValueAtTime(freqEnd, when + a + d * .35);
+  g.gain.setValueAtTime(.0001, when);
+  g.gain.exponentialRampToValueAtTime(peak, when + a);
+  g.gain.exponentialRampToValueAtTime(.0001, when + a + d);
+  let n = o;
+  if (cutoff) { const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = cutoff; o.connect(f); n = f; }
+  n.connect(g); g.connect(demo.out);
+  o.start(when); o.stop(when + a + d + .05);
+}
+function burst(when, hp, bp, d, peak) {
+  const ctx = audioCtx;
+  const s = ctx.createBufferSource(); s.buffer = demo.noise;
+  const f = ctx.createBiquadFilter(); f.type = bp ? 'bandpass' : 'highpass'; f.frequency.value = hp;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(peak, when); g.gain.exponentialRampToValueAtTime(.0001, when + d);
+  s.connect(f); f.connect(g); g.connect(demo.out);
+  s.start(when, Math.random()); s.stop(when + d + .02);
+}
+function demoStep(step, when) {
+  const s = step % 16, bar = Math.floor(step / 16) % 4, root = ROOTS[bar];
+  if (s % 4 === 0 || s === 10) voice('sine', 150, when, .003, .32, .95, 0, 42);                 // kick
+  if (s === 4 || s === 12) burst(when, 1600, true, .14, .5);                                     // clap
+  if (s % 2 === 1) burst(when, 7500, false, s === 15 ? .16 : .045, .22);                         // hats
+  if (s % 4 === 2) voice('sawtooth', root, when, .005, .22, .38, 380);                           // bass
+  const h = Math.abs(Math.sin(step * 12.9898 + bar) * 43758.5453) % 1;
+  if (h > .35) voice('triangle', root * 4 * Math.pow(2, SCALE[Math.floor(h * 97) % SCALE.length] / 12), when, .004, .22, .13, 4200);   // arp
+  if (s === 0) [1, 1.189, 1.498].forEach(r => voice('triangle', root * 4 * r, when, .9, 3, .07, 1400));          // pad
+}
+function demoSchedule() {
+  while (demo.next < audioCtx.currentTime + .15) { demoStep(demo.step, demo.next); demo.next += .125; demo.step = (demo.step + 1) % 64; }
+}
+function startDemo() {
+  if (!demo.out) { demo.out = audioCtx.createGain(); demo.out.gain.value = .9; demo.noise = noiseBuffer(1); }
+  demo.out.connect(fx.input);
+  demo.next = audioCtx.currentTime + .05; demo.step = 0;
+  demo.timer = setInterval(demoSchedule, 25);
+}
+function stopDemo() { clearInterval(demo.timer); demo.timer = null; if (demo.out) demo.out.disconnect(); }
+
+/* --- sources & devices --- */
+function setSource(name) {
+  if (name === 'mic' && !srcNodes.mic) return;
+  if (name === 'file' && !srcNodes.file) return;
+  if (snd.source === name && (demo.timer || name !== 'demo')) { syncSource(); return; }
+  if (srcNodes.mic) try { srcNodes.mic.disconnect(); } catch (e) {}
+  if (srcNodes.file) { try { srcNodes.file.disconnect(); } catch (e) {} fileEl.pause(); }
+  stopDemo();
+  snd.source = name;
+  if (name === 'mic') srcNodes.mic.connect(fx.micSplit);
+  else if (name === 'file') { srcNodes.file.connect(fx.input); fileEl.play().catch(() => {}); }
+  else startDemo();
+  snd.monitor = name !== 'mic';        // a live mic through speakers would feed back, so it starts silent
+  if (name === 'mic') toast('mic is on · press P (listen) to hear it processed — headphones recommended');
+  applyMonitor(); syncSource(); setStatus();
+}
+function loadFile(file) {
+  if (!file) return;
+  if (!fileEl) { fileEl = new Audio(); fileEl.loop = true; }
+  if (fileEl.dataset.url) URL.revokeObjectURL(fileEl.dataset.url);
+  fileEl.dataset.url = URL.createObjectURL(file);
+  fileEl.src = fileEl.dataset.url;
+  if (!srcNodes.file) srcNodes.file = audioCtx.createMediaElementSource(fileEl);
+  snd.fileName = file.name;
+  if (snd.source === 'file') fileEl.play().catch(() => {});
+  setSource('file');
+}
+
+function attachMic(tracks) {
+  micTracks = tracks;
+  const wasActive = snd.source === 'mic' && srcNodes.mic;
+  if (srcNodes.mic) try { srcNodes.mic.disconnect(); } catch (e) {}
+  srcNodes.mic = audioCtx.createMediaStreamSource(new MediaStream(tracks));
+  snd.micLatency = (tracks[0].getSettings && tracks[0].getSettings().latency) || 0.01;
+  snd.micOK = true;
+  if (wasActive) srcNodes.mic.connect(fx.micSplit);
+}
+async function switchMic(deviceId) {
+  const s = await tryGum({ audio: { ...AUDIO_C, deviceId: { exact: deviceId } } });
+  if (!s) { toast('couldn\'t open that input'); refreshDevices(); return; }
+  micTracks.forEach(t => t.stop());
+  attachMic(s.getAudioTracks());
+  saveDevPrefs({ in: deviceId });
+  toast('input changed');
+}
+async function switchOutput(deviceId) {
+  try { await audioCtx.setSinkId(deviceId); saveDevPrefs({ out: deviceId }); toast('output changed'); }
+  catch (e) { toast('couldn\'t switch output'); console.warn(e); }
+}
+async function refreshDevices() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+  let devs = [];
+  try { devs = await navigator.mediaDevices.enumerateDevices(); } catch (e) { return; }
+  const fill = (sel, list, current) => {
+    sel.innerHTML = '';
+    list.forEach((d, i) => {
+      const o = document.createElement('option');
+      o.value = d.deviceId; o.textContent = (sel.id === 'selIn' ? 'in · ' : 'out · ') + (d.label || `device ${i + 1}`);
+      sel.append(o);
+    });
+    if (current && list.some(d => d.deviceId === current)) sel.value = current;
+  };
+  const curIn = micTracks[0] && micTracks[0].getSettings ? micTracks[0].getSettings().deviceId : '';
+  fill($('#selIn'), devs.filter(d => d.kind === 'audioinput'), curIn);
+  fill($('#selOut'), devs.filter(d => d.kind === 'audiooutput'), loadDevPrefs().out);
+  $('#selIn').disabled = !snd.micOK;
+  $('#selOut').hidden = !(audioCtx && audioCtx.setSinkId);
+}
+
+function applyMonitor() {
+  if (!fx.monitor) return;
+  const on = snd.monitor && !snd.takesOpen;
+  fx.monitor.gain.setTargetAtTime(on ? params.volume : 0, audioCtx.currentTime, .05);
+  $('#listenBtn').classList.toggle('on', snd.monitor);
+  $('#listenBtn').setAttribute('aria-pressed', String(snd.monitor));
+}
+
+/* Estimated mouth-to-ear delay of the listen path (input device + our chain + output device).
+   Recording, analysis and visuals don't pass through it, so they are never affected. */
+function listenLatencyMs() {
+  if (!audioCtx) return 0;
+  const chain = (fx.crusher ? 128 / audioCtx.sampleRate : 0) + (fx.gate ? 128 / audioCtx.sampleRate : 0) + TAPE_BASE_DELAY;
+  return Math.round((snd.micLatency + (audioCtx.baseLatency || 0) + (audioCtx.outputLatency || 0) + chain) * 1000);
+}
+function toggleListen() {
+  snd.monitor = !snd.monitor;
+  if (snd.monitor && snd.source === 'mic') {
+    const ms = listenLatencyMs();
+    toast(ms > 45
+      ? `listening with ~${ms}ms delay — talking over it will feel odd. use wired headphones, or keep listen off while you speak`
+      : `listening (~${ms}ms) — use headphones, a mic near speakers will feed back`, ms > 45 ? 7000 : 3500);
+  }
+  applyMonitor(); setStatus();
+}
+
+/* --- analysis: bass / mid / treble from the processed signal, voice from the cleaned input.
+       everything is followed slowly (a second or so) so the picture breathes with the sound instead of twitching --- */
+const peaks = { b: { lo: .3, hi: .5 }, m: { lo: .3, hi: .5 }, t: { lo: .3, hi: .5 } };
+const vstate = { nf: .4, pk: .12 };
+
+function bandAvg(lo, hi, data) {
+  const nyq = audioCtx.sampleRate / 2, n = data.length;
+  const a = Math.max(1, Math.floor(lo / nyq * n)), b = Math.max(a + 1, Math.min(n, Math.ceil(hi / nyq * n)));
+  let s = 0;
+  for (let i = a; i < b; i++) s += data[i];
+  return s / (b - a) / 255;
+}
+
+function updateAudio(dt, t) {
+  analyser.getByteFrequencyData(freqData);
+  const rb = bandAvg(30, 150, freqData), rm = bandAvg(150, 2000, freqData), rt = bandAvg(2000, 10000, freqData);
+  const decay = Math.pow(.992, dt * 60);
+  // auto-range each band between its slowly-tracked floor and its peak, so sustained loudness doesn't pin everything at 1
+  const range = (k, r) => {
+    const p = peaks[k];
+    p.lo = r < p.lo ? lerp(p.lo, r, .3) : p.lo + (r - p.lo) * .004 * dt * 60;
+    p.hi = Math.max(p.lo + .12, r, p.hi * decay);
+    return Math.pow(clamp((r - p.lo) / (p.hi - p.lo), 0, 1), 1.3);
+  };
+  const nb = range('b', rb), nm = range('m', rm), nt = range('t', rt);
+
+  const rel = lerp(.12, .008, params.smooth), atk = lerp(.25, .02, params.smooth);   // at the default: ~0.3s to rise, ~0.5s to fall
+  const follow = (cur, tgt, a = atk, r = rel) => cur + (tgt - cur) * (1 - Math.pow(1 - (tgt > cur ? a : r), dt * 60));
+  audio.bass = follow(audio.bass, clamp(nb, 0, 1));
+  audio.mid = follow(audio.mid, clamp(nm, 0, 1));
+  audio.treble = follow(audio.treble, clamp(nt, 0, 1));
+  audio.level = (audio.bass * 1.2 + audio.mid + audio.treble * .8) / 3;
+
+  // voice activity: speech-band energy above the learned noise floor (tapped after the gate)
+  fx.voiceAn.getByteFrequencyData(voiceData);
+  const rv = bandAvg(220, 3600, voiceData);
+  vstate.nf = rv < vstate.nf ? lerp(vstate.nf, rv, .3) : vstate.nf + (rv - vstate.nf) * .0008 * dt * 60;
+  const above = Math.max(0, rv - vstate.nf);
+  vstate.pk = Math.max(.12, above, vstate.pk * decay);
+  const nv = Math.pow(clamp((above - .03) / (vstate.pk * .75), 0, 1), 1.2);
+  audio.voice = follow(audio.voice, nv, .12, .04);
+
+  // the only thing the picture follows is this: overall loudness averaged over a couple of seconds. no beats, no kicks.
+  audio.slow = follow(audio.slow, audio.level, .012, .008);
+}
+
+/* --- effects follow the music (and tell the shaders what they're doing) --- */
+function updateFx() {
+  // the effects hold still at whatever you set; only the tape wobble leans gently with the overall loudness
+  eff.bits = params.bits;
+  eff.down = params.rate;
+  eff.crush = params.crush;
+  eff.tape = params.tape;
+  eff.wobble = clamp(params.wobble * (1 + audio.slow * .4), 0, 1.6);
+  eff.age = params.age;
+  eff.levelsC = Math.max(3, Math.pow(2, eff.bits - 3));
+
+  if (!fx.input) return;
+  const now = audioCtx.currentTime, set = (p, v, tc = .04) => p.setTargetAtTime(v, now, tc);
+  set(fx.input.gain, params.gain, .03);
+  if (fx.gate) set(fx.gate.parameters.get('amount'), params.gate);
+  if (fx.crusher) {
+    set(fx.crusher.parameters.get('bits'), eff.bits);
+    set(fx.crusher.parameters.get('down'), eff.down);
+    set(fx.crusher.parameters.get('mix'), eff.crush);
+  }
+  // voice: leveling compressor (threshold/ratio/makeup move together), mud cut, presence lift
+  set(fx.comp.threshold, -14 - params.comp * 20);
+  set(fx.comp.ratio, 1.5 + params.comp * 6);
+  set(fx.compMakeup.gain, 1 + params.comp * 1.1);
+  set(fx.mud.gain, -2.5 * Math.min(1, params.comp * 2));
+  set(fx.pres.gain, params.presence * 7);
+  // tape
+  const tape = eff.tape, drive = 1 + tape * 3.5;
+  set(fx.tapeDry.gain, Math.pow(1 - tape, 1.5));                    // the dry voice leaves quickly, so the tape's colour is what you hear
+  set(fx.tapeWet.gain, Math.sin(Math.min(1, tape * 1.4) * Math.PI / 2));
+  set(fx.drive.gain, drive);
+  set(fx.makeup.gain, 1 / Math.pow(drive, .6));
+  const lpHz = 16000 * Math.pow(2200 / 16000, eff.age);             // a VHS audio track rolls off around 3-5kHz when worn
+  set(fx.lp.frequency, lpHz); set(fx.lp2.frequency, lpHz);
+  set(fx.hp.frequency, 40 * Math.pow(8, eff.age));                  // ...and loses its lows
+  set(fx.hissG.gain, tape * (.004 + eff.age * .03));
+  set(fx.wowG.gain, eff.wobble * .0035);
+  set(fx.fluG.gain, eff.wobble * .0005);
+  set(fx.drfG.gain, eff.wobble * .002);
+  set(fx.verbG.gain, params.room * .7);
+}
+
+/* =====================================================================
+   3a. face detection: just "is there a person, and where is their mouth" (MediaPipe BlazeFace, runs locally)
+   ===================================================================== */
+const MP_BASE = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
+const MP_MODEL = 'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite';
+const face = { mode: 'off', present: 0, seen: false, lastSeen: -1e9, lastT: 0, det: null,
+  cx: .5, cy: .4, w: .3, h: .42, mx: .5, my: .5, tcx: .5, tcy: .4, tw: .3, th: .42, tmx: .5, tmy: .5 };
+let faceLabel = '';
+
+async function initFace() {
+  face.mode = 'loading'; setStatus();
+  try {
+    const mod = await import(MP_BASE + '/vision_bundle.mjs');
+    const fs = await mod.FilesetResolver.forVisionTasks(MP_BASE + '/wasm');
+    face.det = await mod.FaceDetector.createFromOptions(fs, {
+      baseOptions: { modelAssetPath: MP_MODEL, delegate: 'GPU' }, runningMode: 'VIDEO', minDetectionConfidence: .5,
+    });
+    face.mode = 'searching';
+  } catch (e) {
+    console.warn('face detector unavailable', e);
+    face.mode = 'off';
+    toast('face detection couldn\'t load (offline?) — assuming you are in the middle of the frame', 5000);
+  }
+  setStatus();
+}
+
+function updateFace(now, dt) {
+  if (source && source.face) {                             // the demo "person"
+    const f = source.face;
+    Object.assign(face, { mode: 'demo', cx: f.cx, cy: f.cy, w: f.w, h: f.h, mx: f.mx, my: f.my });
+    face.present = 1;
+    return;
+  }
+  let want = face.seen ? 1 : 0;
+  if (face.mode === 'off' || face.mode === 'loading') {    // no detector: assume the speaker is centred
+    Object.assign(face, { tcx: .5, tcy: .4, tw: .3, th: .42, tmx: .5, tmy: .47 });
+    want = 1;
+  } else if (face.det && source === video && video.readyState >= 2 && now - face.lastT > 66) {
+    face.lastT = now;
+    try {
+      const d = face.det.detectForVideo(video, now).detections[0];
+      if (d && d.categories[0] && d.categories[0].score > .5) {
+        const bb = d.boundingBox, W = video.videoWidth, H = video.videoHeight;
+        face.tcx = (bb.originX + bb.width / 2) / W; face.tcy = (bb.originY + bb.height / 2) / H;
+        face.tw = bb.width / W; face.th = bb.height / H;
+        const m = d.keypoints && d.keypoints[3];             // BlazeFace keypoint 3 = mouth
+        face.tmx = m ? m.x : face.tcx; face.tmy = m ? m.y : face.tcy + face.th * .25;
+        face.seen = true; face.lastSeen = now;
+      } else if (now - face.lastSeen > 1200) face.seen = false;
+    } catch (e) { /* transient decode errors */ }
+    want = face.seen ? 1 : 0;
+  }
+  const k = 1 - Math.pow(.02, dt);                         // ease the box (~0.25s) so it never jumps
+  face.cx += (face.tcx - face.cx) * k; face.cy += (face.tcy - face.cy) * k;
+  face.w += (face.tw - face.w) * k; face.h += (face.th - face.h) * k;
+  face.mx += (face.tmx - face.mx) * k; face.my += (face.tmy - face.my) * k;
+  face.present += (want - face.present) * (1 - Math.pow(.001, dt / 1.5));   // fades in/out over a second or so
+  const label = face.mode === 'off' ? 'face: off' : face.mode === 'loading' ? 'face: loading' : face.present > .5 ? 'face ✓' : 'looking for a face';
+  if (label !== faceLabel) { faceLabel = label; setStatus(); }
+}
+
+/* what your voice does to the mosh is slow on purpose: the level builds it up over a few seconds and it relaxes over a few more.
+   it reaches full strength at ordinary speaking volume (about a fifth of the voice range), not at a shout. */
+const voiceDrive = { v: 0 };
+function updateVoiceDrive(dt) {
+  const x = clamp((audio.voice - .03) / .19, 0, 1);
+  const want = x * x * (3 - 2 * x) * params.dissolve;
+  const tau = want > voiceDrive.v ? 2.5 : 4;
+  voiceDrive.v += (want - voiceDrive.v) * (1 - Math.exp(-dt / tau));
+}
+
+/* =====================================================================
+   3b. WebGL: video -> motion vectors -> datamosh memory -> floating 3D surface -> bloom -> composite
+   ===================================================================== */
+const canvas = $('#gl');
+const gl = canvas.getContext('webgl2', { alpha: false, antialias: false, depth: false, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
+if (!gl) {
+  $('#start .box').innerHTML = '<h1>reflection</h1><p>this needs WebGL2, which your browser doesn\'t support.<br>try a recent Chrome, Edge, Firefox or Safari.</p>';
+  throw new Error('WebGL2 unavailable');
+}
+
+const GL_COMMON = `
+precision highp float;
+precision highp sampler2D;
+float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+float vn(vec2 p) {
+  vec2 i = floor(p), f = fract(p);
+  f = f * f * (3. - 2. * f);
+  return mix(mix(hash(i), hash(i + vec2(1., 0.)), f.x), mix(hash(i + vec2(0., 1.)), hash(i + vec2(1., 1.)), f.x), f.y);
+}
+vec3 hueRot(vec3 c, float a) {
+  vec3 k = vec3(.57735);
+  float ca = cos(a), sa = sin(a);
+  return c * ca + cross(k, c) * sa + k * dot(k, c) * (1. - ca);
+}
+uniform vec4 uFace;     // face box: centre xy, size zw  (video uv space)
+uniform vec2 uMouth;
+uniform float uFaceOn;
+// soft mask of "the speaker": a head ellipse plus a wider ellipse below it for shoulders and torso
+float oratorMask(vec2 uv) {
+  vec2 c = uFace.xy, s = uFace.zw;
+  float head = 1. - smoothstep(.55, 1.15, length((uv - c) / (s * vec2(.75, .9))));
+  vec2 bc = c + vec2(0., s.y * 1.85);
+  float body = 1. - smoothstep(.6, 1.2, length((uv - bc) / (s * vec2(2.1, 1.7))));
+  return max(head, body * .85) * uFaceOn;
+}
+`;
+const V300 = '#version 300 es\n';
+
+const QUAD_VS = V300 + `
+out vec2 vUV;
+void main() {
+  vec2 p = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2);
+  vUV = p;
+  gl_Position = vec4(p * 2. - 1., 0., 1.);
+}`;
+
+/* motion: a small Lucas-Kanade optical flow (blurred, low-res) gives every area of the picture a motion vector (rg).
+   alpha is a slowly decaying "motion energy": where you have just moved. */
+const FLOW_FS = V300 + GL_COMMON + `
+in vec2 vUV; out vec4 o;
+uniform sampler2D uCur, uPrev, uPrevFlow;
+uniform vec2 uTexel;
+float L(sampler2D t, vec2 uv) { return dot(textureLod(t, uv, 1.5).rgb, vec3(.299, .587, .114)); }
+void main() {
+  float sxx = 0., sxy = 0., syy = 0., sxt = 0., syt = 0., td = 0.;
+  for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) {
+    vec2 uv = vUV + vec2(float(i), float(j)) * uTexel * 1.5;
+    float c = L(uCur, uv);
+    float ix = (L(uCur, uv + vec2(uTexel.x, 0.)) - L(uCur, uv - vec2(uTexel.x, 0.))) * .5;
+    float iy = (L(uCur, uv + vec2(0., uTexel.y)) - L(uCur, uv - vec2(0., uTexel.y))) * .5;
+    float it = c - L(uPrev, uv);
+    sxx += ix * ix; sxy += ix * iy; syy += iy * iy; sxt += ix * it; syt += iy * it; td += abs(it);
+  }
+  float lam = .002, det = (sxx + lam) * (syy + lam) - sxy * sxy;
+  vec2 v = -vec2((syy + lam) * sxt - sxy * syt, (sxx + lam) * syt - sxy * sxt) / det;   // in texels
+  v *= uTexel;
+  float m = length(v);
+  if (m > .04) v *= .04 / m;
+  float ed = clamp((td / 9. - .02) * 7., 0., 1.);
+  vec2 e = uTexel * 1.6;
+  float prev = (texture(uPrevFlow, vUV).a * 2. + texture(uPrevFlow, vUV + vec2(e.x, 0.)).a + texture(uPrevFlow, vUV - vec2(e.x, 0.)).a
+              + texture(uPrevFlow, vUV + vec2(0., e.y)).a + texture(uPrevFlow, vUV - vec2(0., e.y)).a) / 6.;
+  o = vec4(v / .04 * .5 + .5, min(m / .04, 1.), max(ed, prev * .985 - .002));
+}`;
+
+/* datamosh. the picture is a memory, not a window. every frame the memory is dragged along your motion vectors (old pixels travel
+   with whatever moved), and the live picture only replaces it pixel by pixel, slowly. where you are moving the old pixels hold on
+   longer, so you leave a drifting smear of where you were that the new image gradually eats. a faint zero-gravity drift keeps it
+   alive. your voice breathes data outward from the mouth and makes the old pixels around you hold on even longer. */
+const MOSH_FS = V300 + GL_COMMON + `
+in vec2 vUV; out vec4 o;
+uniform sampler2D uCur, uMosh, uFlow;
+uniform float uTime, uMoshAmt, uVoice, uSpeed, uAspect, uInit, uFrame;
+void main() {
+  vec2 uv = vUV;
+  vec3 cur = texture(uCur, uv).rgb;
+  if (uInit > .5) { o = vec4(cur, 1.); return; }
+
+  vec4 fl = texture(uFlow, uv);
+  vec2 mv = (fl.rg * 2. - 1.) * .04;                     // where this part of the picture just moved to (uv per frame)
+  float en = fl.a;
+
+  float T = uTime * uSpeed;
+  vec2 p = uv * vec2(uAspect, 1.) * 2.2;
+  vec2 dn = vec2(vn(p + vec2(T * .06, -T * .04)) - .5, vn(p + 7.3 + vec2(-T * .05, T * .07)) - .5);   // zero-g drift, no direction
+
+  vec2 dm = (uv - uMouth) * vec2(uAspect, 1.);
+  float dl = length(dm);
+  vec2 push = dm / (dl + .05) * exp(-dl * 2.2) * uVoice * uFaceOn;       // speech carries old pixels away from the mouth, gently
+  push.x /= uAspect;
+
+  vec2 drift = mv * uMoshAmt + dn * .0022 * uMoshAmt * (.12 + en) + push * .004;   // still areas stay crisp; whatever you moved drifts
+  vec3 pred = texture(uMosh, uv - drift).rgb;             // the memory, dragged along
+
+  float rate = exp(-4.2 * uMoshAmt);                      // how readily the live picture replaces the memory: 1 = always, ~.015 = very slowly
+  rate *= 1. - .6 * en * uMoshAmt;                        // where you moved, the old pixels hold on longer
+  rate *= 1. - .5 * uVoice * uFaceOn * exp(-dl * 1.5);    // and while you talk, around you
+  float r = hash(floor(uv * vec2(320., 180.)) + uFrame * 1.37);
+  o = vec4(r < rate ? cur : mix(pred, cur, rate * .25), 1.);   // each pixel decides for itself: the new image seeps in grain by grain
+}`;
+
+/* the picture as a smooth surface that floats in zero gravity: slow noise fields drift in opposite directions, no wind, nothing falls */
+const MESH_VS = V300 + GL_COMMON + `
+layout(location = 0) in vec2 aUV;
+uniform sampler2D uCur, uFlow;
+uniform mat4 uMVP;
+uniform float uTime, uAspect, uDepth, uBass, uLevel, uSens, uMirror, uDrift, uSpeed, uMotion;
+out vec2 vUV;
+out vec3 vPos;
+void main() {
+  vec2 q = vec2((aUV.x - .5) * 2. * uAspect, (.5 - aUV.y) * 2.);
+  if (uMirror > .5) q.x = -q.x;
+  float lum = dot(textureLod(uCur, aUV, 2.).rgb, vec3(.299, .587, .114));
+  float en = textureLod(uFlow, aUV, 0.).a;
+
+  float T = uTime * uSpeed;
+  float f1 = vn(q * .9 + vec2(T * .05, -T * .04) + 11.);
+  float f2 = vn(q * 1.7 - vec2(T * .03, T * .06));
+  float amp = uDrift * (.6 + .8 * uLevel * uSens);                 // the sound changes how much it floats, never how fast
+
+  vec3 p = vec3(q, 0.);
+  p.z = (lum - .5) * uDepth * (1. + uBass * .35 * uSens) + ((f1 - .5) + .5 * (f2 - .5)) * amp * .9 + en * uMotion * .3 * uSens;
+  p.xy += (vec2(f1, f2) - .5) * .10 * amp;
+
+  vUV = aUV; vPos = p;
+  gl_Position = uMVP * vec4(p, 1.);
+}`;
+
+const MESH_FS = V300 + GL_COMMON + `
+in vec2 vUV;
+in vec3 vPos;
+uniform sampler2D uCam, uFlow;
+uniform float uWire, uMotion, uVideoMix, uHue, uSolidDim;
+uniform vec3 uPalA, uPalB, uPalC;
+out vec4 o;
+vec3 pal(float t) { return t < .5 ? mix(uPalA, uPalB, t * 2.) : mix(uPalB, uPalC, (t - .5) * 2.); }
+void main() {
+  vec3 cam = texture(uCam, vUV).rgb;
+  float lum = dot(cam, vec3(.299, .587, .114));
+  float en = texture(uFlow, vUV).a;
+  float hr = uHue * 6.2832;
+  vec3 glowC = hueRot(mix(uPalB, uPalC, clamp(en * 1.5, 0., 1.)), hr);
+
+  if (uWire > .5) {                                           // data-mesh lines
+    vec3 wc = mix(glowC * (.45 + en * 2.2), cam * 1.5, uVideoMix * .6);
+    o = vec4(wc * (.4 + lum * 1.4), .6);
+    return;
+  }
+  vec3 tint = hueRot(pal(clamp(lum * 1.2 + en * .3, 0., 1.)), hr);
+  vec3 col = mix(tint * (.5 + lum * 1.1), cam * 1.05, uVideoMix);
+  vec3 n = normalize(cross(dFdx(vPos), dFdy(vPos)));
+  col *= (.78 + .22 * max(dot(n, normalize(vec3(-.35, .55, .75))), 0.)) * uSolidDim;
+  col += glowC * (en * en * 2. * uMotion + pow(1. - abs(n.z), 3.) * .1 * uMotion * (.3 + en));   // movement glows
+  o = vec4(col, 1.);
+}`;
+
+const BRIGHT_FS = V300 + GL_COMMON + `
+in vec2 vUV; out vec4 o;
+uniform sampler2D uSrc;
+uniform vec2 uTexel;
+void main() {
+  vec3 s = (texture(uSrc, vUV + uTexel * vec2(-.5, -.5)).rgb + texture(uSrc, vUV + uTexel * vec2(.5, -.5)).rgb
+          + texture(uSrc, vUV + uTexel * vec2(-.5, .5)).rgb + texture(uSrc, vUV + uTexel * vec2(.5, .5)).rgb) * .25;
+  float l = max(max(s.r, s.g), s.b);
+  o = vec4(s * smoothstep(.55, .95, l), 1.);
+}`;
+const BLUR_FS = V300 + GL_COMMON + `
+in vec2 vUV; out vec4 o;
+uniform sampler2D uSrc;
+uniform vec2 uDir;
+void main() {
+  vec3 c = texture(uSrc, vUV).rgb * .227027;
+  c += (texture(uSrc, vUV + uDir * 1.3846).rgb + texture(uSrc, vUV - uDir * 1.3846).rgb) * .3162162;
+  c += (texture(uSrc, vUV + uDir * 3.2308).rgb + texture(uSrc, vUV - uDir * 3.2308).rgb) * .0702703;
+  o = vec4(c, 1.);
+}`;
+
+/* final look: bloom, soft rgb split, slow VHS sway, bitcrushed colour + pixels. nothing flickers */
+const COMP_FS = V300 + GL_COMMON + `
+in vec2 vUV; out vec4 o;
+uniform sampler2D uScene, uBloomA, uBloomB;
+uniform vec2 uRes;
+uniform float uGlow, uSplit, uTime, uTape, uWow, uAge, uCrush, uLevelsC, uCell, uLevel;
+void main() {
+  vec2 uv = vUV;
+  if (uCell > 1.01) { vec2 cell = uCell / uRes; uv = (floor(uv / cell) + .5) * cell; }       // downsample = bigger pixels
+  uv.x += uTape * sin(uv.y * 7. + uTime * .35) * uWow * .003;                               // tape transport sway: a slow lean, no jitter
+  float sp = uSplit * .004 + uTape * uAge * .0012;
+  vec3 c = vec3(texture(uScene, uv + vec2(sp, 0.)).r, texture(uScene, uv).g, texture(uScene, uv - vec2(sp, 0.)).b);
+  c += (texture(uBloomA, uv).rgb * .4 + texture(uBloomB, uv).rgb * .75) * uGlow * (1. + uLevel * .5);
+  c = mix(c, floor(c * uLevelsC + .5) / uLevelsC, uCrush);                                  // fewer bits = fewer colours
+  c *= 1. - uTape * .1 * (.5 + .5 * sin(uv.y * 520. * 3.14159));                            // scanlines
+  c += (hash(uv * uRes + floor(uTime * 12.)) - .5) * (.01 + uTape * uAge * .05);            // fine grain
+  c *= 1. - .35 * dot(vUV - .5, vUV - .5);
+  c = c / (1. + c * .32) * 1.2;                                                             // soft shoulder: highlights roll off instead of clipping
+  o = vec4(c, 1.);
+}`;
+
+function compile(type, src) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src); gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+    const log = gl.getShaderInfoLog(s);
+    console.error(src.split('\n').map((l, i) => (i + 1) + ': ' + l).join('\n'));
+    throw new Error(log);
+  }
+  return s;
+}
+function program(vs, fs) {
+  const p = gl.createProgram();
+  gl.attachShader(p, compile(gl.VERTEX_SHADER, vs));
+  gl.attachShader(p, compile(gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+  return { p, loc: {} };
+}
+const uloc = (prog, n) => (n in prog.loc) ? prog.loc[n] : (prog.loc[n] = gl.getUniformLocation(prog.p, n));
+
+// set uniforms from a plain object: numbers -> float, arrays by length (2/3/4 vec, 16 = mat4)
+function setU(prog, o) {
+  for (const k in o) {
+    const l = uloc(prog, k); if (l === null) continue;
+    const v = o[k];
+    if (typeof v === 'number') gl.uniform1f(l, v);
+    else if (v.length === 2) gl.uniform2fv(l, v);
+    else if (v.length === 3) gl.uniform3fv(l, v);
+    else if (v.length === 4) gl.uniform4fv(l, v);
+    else if (v.length === 16) gl.uniformMatrix4fv(l, false, v);
+  }
+}
+function setTex(prog, o) {
+  let unit = 0;
+  for (const k in o) {
+    gl.activeTexture(gl.TEXTURE0 + unit);
+    gl.bindTexture(gl.TEXTURE_2D, o[k]);
+    const l = uloc(prog, k); if (l !== null) gl.uniform1i(l, unit);
+    unit++;
+  }
+}
+
+const progs = {
+  flow: program(QUAD_VS, FLOW_FS), mosh: program(QUAD_VS, MOSH_FS), mesh: program(MESH_VS, MESH_FS),
+  bright: program(QUAD_VS, BRIGHT_FS), blur: program(QUAD_VS, BLUR_FS), comp: program(QUAD_VS, COMP_FS),
+};
+
+/* --- render targets --- */
+function makeTarget(w, h, depth, mip) {
+  w = Math.max(1, Math.floor(w)); h = Math.max(1, Math.floor(h));
+  const tex = gl.createTexture();
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  if (mip) gl.generateMipmap(gl.TEXTURE_2D);                       // so the surface can read smooth depth from it
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, mip ? gl.LINEAR_MIPMAP_LINEAR : gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  const fbo = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+  let rb = null;
+  if (depth) {
+    rb = gl.createRenderbuffer();
+    gl.bindRenderbuffer(gl.RENDERBUFFER, rb);
+    gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, w, h);
+    gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, rb);
+  }
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  return { tex, fbo, rb, w, h };
+}
+function freeTarget(t) { if (!t) return; gl.deleteTexture(t.tex); gl.deleteFramebuffer(t.fbo); if (t.rb) gl.deleteRenderbuffer(t.rb); }
+function bindTarget(t) {
+  gl.bindFramebuffer(gl.FRAMEBUFFER, t ? t.fbo : null);
+  gl.viewport(0, 0, t ? t.w : canvas.width, t ? t.h : canvas.height);
+}
+const pingpong = (w, h, mip) => ({ r: makeTarget(w, h, false, mip), w: makeTarget(w, h, false, mip), flip() { [this.r, this.w] = [this.w, this.r]; } });
+function freePP(pp) { if (pp) { freeTarget(pp.r); freeTarget(pp.w); } }
+
+const tg = { W: 0, H: 0, scene: null, A: null, B: null, C: null, D: null };      // screen-sized targets
+const vt = { key: '', flow: null, mosh: null, moshInit: true, moshFrame: 0 };      // video-sized targets
+function ensureScreenTargets() {
+  const W = canvas.width, H = canvas.height;
+  if (tg.W === W && tg.H === H) return;
+  ['scene', 'A', 'B', 'C', 'D'].forEach(k => freeTarget(tg[k]));
+  tg.W = W; tg.H = H;
+  tg.scene = makeTarget(W, H, true);
+  tg.A = makeTarget(W / 2, H / 2); tg.B = makeTarget(W / 2, H / 2);
+  tg.C = makeTarget(W / 4, H / 4); tg.D = makeTarget(W / 4, H / 4);
+}
+function ensureVideoTargets() {
+  const key = texW + 'x' + texH;
+  if (vt.key === key) return;
+  freePP(vt.flow); freePP(vt.mosh);
+  vt.key = key;
+  vt.flow = pingpong(160, Math.round(160 / vidAspect));
+  vt.mosh = pingpong(640, Math.round(640 / vidAspect), true);
+  vt.moshInit = true;
+}
+
+/* --- camera frames: two textures (current + previous) so the shaders can see motion --- */
+const camTex = [0, 1].map(() => {
+  const t = gl.createTexture();
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, t);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  return t;
+});
+let camIdx = 0, texW = 0, texH = 0, vidAspect = 16 / 9, lastVT = -1;
+let source = null;   // <video> or <canvas> (demo)
+
+// returns true when a NEW camera frame arrived (the motion map only advances on real frames)
+function uploadSource() {
+  if (!source) return false;
+  if (source.readyState !== undefined) {
+    if (source.readyState < 2 || source.currentTime === lastVT) return false;
+    lastVT = source.currentTime;
+  }
+  const w = source.videoWidth || source.width, h = source.videoHeight || source.height;
+  if (!w || !h) return false;
+  gl.activeTexture(gl.TEXTURE0);
+  if (w !== texW || h !== texH) {
+    for (const t of camTex) { gl.bindTexture(gl.TEXTURE_2D, t); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source); gl.generateMipmap(gl.TEXTURE_2D); }
+    texW = w; texH = h; vidAspect = w / h; camIdx = 0;
+    return true;
+  }
+  camIdx ^= 1;
+  gl.bindTexture(gl.TEXTURE_2D, camTex[camIdx]);
+  gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, source);
+  gl.generateMipmap(gl.TEXTURE_2D);
+  return true;
+}
+
+/* --- the surface: one smooth grid (rebuilt when detail / video aspect change) --- */
+const geo = { key: '', triN: 0, wireN: 0, vaoS: null, vaoW: null, bufs: [] };
+
+function buildGeometry() {
+  const cols = Math.round(params.density);
+  const rows = Math.max(2, Math.round(cols / vidAspect));
+  const key = cols + 'x' + rows;
+  if (key === geo.key) return;
+  geo.bufs.forEach(b => gl.deleteBuffer(b));
+  [geo.vaoS, geo.vaoW].forEach(v => v && gl.deleteVertexArray(v));
+  geo.bufs = [];
+
+  const vc = cols + 1, vr = rows + 1;
+  const uv = new Float32Array(vc * vr * 2);
+  for (let j = 0, n = 0; j < vr; j++) for (let i = 0; i < vc; i++) { uv[n++] = i / cols; uv[n++] = j / rows; }
+  const tri = new Uint32Array(cols * rows * 6), wire = new Uint32Array((cols * vr + rows * vc) * 2);
+  let ti = 0, wi = 0;
+  for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
+    const a = j * vc + i, b = a + 1, c = a + vc, d = c + 1;
+    tri[ti++] = a; tri[ti++] = c; tri[ti++] = b; tri[ti++] = b; tri[ti++] = c; tri[ti++] = d;
+  }
+  for (let j = 0; j < vr; j++) for (let i = 0; i < cols; i++) { const a = j * vc + i; wire[wi++] = a; wire[wi++] = a + 1; }
+  for (let i = 0; i < vc; i++) for (let j = 0; j < rows; j++) { const a = j * vc + i; wire[wi++] = a; wire[wi++] = a + vc; }
+
+  const vb = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, vb); gl.bufferData(gl.ARRAY_BUFFER, uv, gl.STATIC_DRAW);
+  geo.bufs.push(vb);
+  const makeVao = idx => {
+    const vao = gl.createVertexArray();
+    gl.bindVertexArray(vao);
+    gl.bindBuffer(gl.ARRAY_BUFFER, vb);
+    gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 8, 0);
+    const b = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, b); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idx, gl.STATIC_DRAW);
+    geo.bufs.push(b);
+    gl.bindVertexArray(null);
+    return vao;
+  };
+  geo.vaoS = makeVao(tri); geo.vaoW = makeVao(wire);
+  Object.assign(geo, { key, triN: tri.length, wireN: wire.length });
+}
+
+/* --- matrices (column-major) --- */
+function perspective(fov, asp, n, f) {
+  const t = 1 / Math.tan(fov / 2);
+  return [t / asp, 0, 0, 0, 0, t, 0, 0, 0, 0, (f + n) / (n - f), -1, 0, 0, 2 * f * n / (n - f), 0];
+}
+function mul(a, b) {
+  const o = new Float32Array(16);
+  for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) {
+    let s = 0;
+    for (let k = 0; k < 4; k++) s += a[k * 4 + r] * b[c * 4 + k];
+    o[c * 4 + r] = s;
+  }
+  return o;
+}
+const rotX = a => { const c = Math.cos(a), s = Math.sin(a); return [1, 0, 0, 0, 0, c, s, 0, 0, -s, c, 0, 0, 0, 0, 1]; };
+const rotY = a => { const c = Math.cos(a), s = Math.sin(a); return [c, 0, -s, 0, 0, 1, 0, 0, s, 0, c, 0, 0, 0, 0, 1]; };
+const rotZ = a => { const c = Math.cos(a), s = Math.sin(a); return [c, s, 0, 0, -s, c, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]; };
+const trans = (x, y, z) => [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, y, z, 1];
+
+/* --- camera / orbit --- */
+const cam = { dragYaw: 0, dragPitch: 0, zoom: 1 };
+let dragging = false, lastX = 0, lastY = 0;
+canvas.addEventListener('pointerdown', e => { dragging = true; lastX = e.clientX; lastY = e.clientY; canvas.setPointerCapture(e.pointerId); });
+canvas.addEventListener('pointermove', e => {
+  if (!dragging) return;
+  cam.dragYaw += (e.clientX - lastX) * .006;
+  cam.dragPitch = clamp(cam.dragPitch + (e.clientY - lastY) * .006, -1.2, 1.2);
+  lastX = e.clientX; lastY = e.clientY;
+});
+const endDrag = () => { dragging = false; };
+canvas.addEventListener('pointerup', endDrag);
+canvas.addEventListener('pointercancel', endDrag);
+canvas.addEventListener('wheel', e => { e.preventDefault(); cam.zoom = clamp(cam.zoom * Math.exp(e.deltaY * .001), .45, 2); }, { passive: false });
+canvas.addEventListener('dblclick', () => { cam.dragYaw = cam.dragPitch = 0; cam.zoom = 1; });
+
+/* --- resize (dimensions divisible by 4: video encoders reject odd sizes, and the bloom chain halves twice) --- */
+let dpr = Math.min(window.devicePixelRatio || 1, 2);
+function resize() {
+  const w = Math.max(4, Math.floor(innerWidth * dpr / 4) * 4), h = Math.max(4, Math.floor(innerHeight * dpr / 4) * 4);
+  if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+}
+addEventListener('resize', resize);
+
+/* --- passes --- */
+function fullscreen(prog, target, tex, uni) {
+  gl.useProgram(prog.p);
+  bindTarget(target);
+  gl.disable(gl.BLEND); gl.disable(gl.DEPTH_TEST);
+  setTex(prog, tex);
+  if (uni) setU(prog, uni);
+  gl.bindVertexArray(null);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+}
+
+function flowPass() {
+  const f = vt.flow;
+  fullscreen(progs.flow, f.w, { uCur: camTex[camIdx], uPrev: camTex[camIdx ^ 1], uPrevFlow: f.r.tex }, { uTexel: [1 / f.w.w, 1 / f.w.h] });
+  f.flip();
+}
+
+const faceU = () => ({ uFace: [face.cx, face.cy, face.w, face.h], uMouth: [face.mx, face.my], uFaceOn: face.present });
+function moshPass(t) {
+  const m = vt.mosh;
+  fullscreen(progs.mosh, m.w, { uCur: camTex[camIdx], uMosh: m.r.tex, uFlow: vt.flow.r.tex }, {
+    uTime: t, uMoshAmt: params.mosh, uVoice: voiceDrive.v, uSpeed: params.speed, uAspect: vidAspect,
+    uInit: vt.moshInit ? 1 : 0, uFrame: vt.moshFrame++ % 997, ...faceU(),
+  });
+  m.flip(); vt.moshInit = false;
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, m.r.tex); gl.generateMipmap(gl.TEXTURE_2D);
+}
+
+function scenePass(t) {
+  const W = canvas.width, H = canvas.height;
+  buildGeometry();
+  // zero gravity: the whole surface hangs in space and slowly turns on three axes at once, each on its own very slow cycle
+  const sp = params.speed, fov = 45 * Math.PI / 180, asp = W / H;
+  const dist = Math.max(3.2, (vidAspect * 1.12) / (Math.tan(fov / 2) * asp)) * cam.zoom;
+  const yaw = Math.sin(t * .07 * sp * 2) * .45 * params.spin + cam.dragYaw;
+  const pitch = Math.sin(t * .05 * sp * 2 + 1.3) * .16 * params.spin + cam.dragPitch;
+  const roll = Math.sin(t * .031 * sp * 2 + 2.1) * .06 * params.spin;
+  const mvp = mul(perspective(fov, asp, .1, 50), mul(trans(0, 0, -dist), mul(rotZ(roll), mul(rotX(pitch), rotY(yaw)))));
+  const pal = PALETTES[params.palette].c.map(hexToRgb);
+
+  const p = progs.mesh;
+  gl.useProgram(p.p);
+  bindTarget(tg.scene);
+  gl.clearColor(0, 0, 0, 1);
+  gl.depthMask(true);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  setTex(p, { uCur: vt.mosh.r.tex, uCam: vt.mosh.r.tex, uFlow: vt.flow.r.tex });   // the surface wears the moshed memory, depth and all
+  setU(p, {
+    uMVP: mvp, uTime: t, uAspect: vidAspect, uDepth: params.depth, uBass: audio.slow, uLevel: audio.slow, uSens: params.sens,
+    uMirror: params.mirror ? 1 : 0, uDrift: params.drift, uSpeed: params.speed, uMotion: params.mglow,
+    uVideoMix: params.video, uHue: params.hue, uPalA: pal[0], uPalB: pal[1], uPalC: pal[2],
+  });
+
+  if (params.mode !== 2) {                               // solid surface (dimmed under the lines in x-ray mode)
+    setU(p, { uWire: 0, uSolidDim: params.mode === 1 ? .35 : 1 });
+    gl.disable(gl.BLEND); gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL);
+    gl.enable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(1, 1);
+    gl.bindVertexArray(geo.vaoS);
+    gl.drawElements(gl.TRIANGLES, geo.triN, gl.UNSIGNED_INT, 0);
+    gl.disable(gl.POLYGON_OFFSET_FILL);
+  }
+  if (params.mode !== 0) {                               // glowing mesh lines
+    setU(p, { uWire: 1, uSolidDim: 1 });
+    gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+    if (params.mode === 1) { gl.enable(gl.DEPTH_TEST); gl.depthMask(false); } else gl.disable(gl.DEPTH_TEST);
+    gl.bindVertexArray(geo.vaoW);
+    gl.drawElements(gl.LINES, geo.wireN, gl.UNSIGNED_INT, 0);
+    gl.depthMask(true);
+  }
+  gl.bindVertexArray(null);
+  gl.disable(gl.BLEND); gl.disable(gl.DEPTH_TEST);
+}
+
+function bloomPass() {
+  fullscreen(progs.bright, tg.A, { uSrc: tg.scene.tex }, { uTexel: [1 / tg.scene.w, 1 / tg.scene.h] });
+  fullscreen(progs.blur, tg.B, { uSrc: tg.A.tex }, { uDir: [1 / tg.A.w, 0] });
+  fullscreen(progs.blur, tg.A, { uSrc: tg.B.tex }, { uDir: [0, 1 / tg.A.h] });
+  fullscreen(progs.blur, tg.C, { uSrc: tg.A.tex }, { uDir: [2.2 / tg.A.w, 0] });        // wide halo at quarter res
+  fullscreen(progs.blur, tg.D, { uSrc: tg.C.tex }, { uDir: [0, 2.2 / tg.C.h] });
+}
+function compositePass(t) {
+  fullscreen(progs.comp, null, { uScene: tg.scene.tex, uBloomA: tg.A.tex, uBloomB: tg.D.tex }, {
+    uRes: [canvas.width, canvas.height], uGlow: params.glow, uSplit: params.split, uTime: t,
+    uTape: eff.tape, uWow: eff.wobble, uAge: eff.age, uCrush: eff.crush,
+    uLevelsC: eff.levelsC, uCell: 1 + (eff.down - 1) * eff.crush * .75, uLevel: audio.slow,
+  });
+}
+
+function render(t, newFrame) {
+  if (!texW) return;
+  ensureScreenTargets(); ensureVideoTargets();
+  if (newFrame) { flowPass(); moshPass(t); }
+  scenePass(t);
+  bloomPass();
+  compositePass(t);
+}
+
+/* =====================================================================
+   4. input sources (camera / mic / fallbacks)
+   ===================================================================== */
+const video = document.createElement('video');
+video.muted = true; video.playsInline = true;
+
+async function tryGum(constraints) {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return null;
+  try { return await navigator.mediaDevices.getUserMedia(constraints); }
+  catch (e) { console.warn('getUserMedia failed', constraints, e.name); return null; }
+}
+
+/* procedural stand-in for the camera (demo mode / no camera): a "person" who talks when the music does */
+function makeDemoSource() {
+  const c = document.createElement('canvas');
+  c.width = 640; c.height = 360;
+  const g = c.getContext('2d');
+  c.face = { cx: .5, cy: .42, w: .24, h: .5, mx: .5, my: .52 };
+  c.tick = t => {
+    g.fillStyle = '#000'; g.fillRect(0, 0, 640, 360);
+    const blob = (x, y, rx, ry, a, col = '255,255,255') => {
+      g.save(); g.translate(x, y); g.scale(rx, ry);
+      const gr = g.createRadialGradient(0, 0, 0, 0, 0, 1);
+      gr.addColorStop(0, `rgba(${col},${a})`); gr.addColorStop(1, `rgba(${col},0)`);
+      g.fillStyle = gr; g.beginPath(); g.arc(0, 0, 1, 0, 7); g.fill(); g.restore();
+    };
+    const sx = Math.sin(t * .6) * 40, hy = 150 + Math.sin(t * 1.3) * 6;
+    blob(320 + sx, 330, 190, 120, .75, '210,220,235');                  // shoulders
+    blob(320 + sx, hy, 78, 100, 1, '255,235,220');                      // head
+    blob(296 + sx, hy - 14, 9, 6, .9, '20,20,30'); blob(344 + sx, hy - 14, 9, 6, .9, '20,20,30');                       // eyes
+    blob(320 + sx, hy + 38, 20, 4 + audio.voice * 16, .9, '40,10,20');                                                 // mouth opens with the voice
+    for (let i = 0; i < 3; i++) {                                       // someone walking behind
+      const a = t * (.5 + i * .23) + i * 1.7;
+      blob(320 + Math.cos(a) * (230 + i * 20), 190 + Math.sin(a * 1.3) * 100, 40, 40, .5);
+    }
+    Object.assign(c.face, { cx: (320 + sx) / 640, cy: hy / 360, mx: (320 + sx) / 640, my: (hy + 38) / 360 });
+  };
+  return c;
+}
+
+let videoLabel = '';
+function setStatus() {
+  const parts = [videoLabel, snd.source === 'mic' ? 'mic' : snd.source === 'file' ? 'file' : 'demo track'];
+  if (faceLabel && face.mode !== 'demo') parts.push(faceLabel);
+  if (snd.monitor) parts.push(snd.source === 'mic' ? `listening ~${listenLatencyMs()}ms` : 'listening');
+  $('#statusText').textContent = parts.filter(Boolean).join(' · ');
+}
+
+async function start(demoOnly) {
+  $('#btnStart').disabled = $('#btnDemo').disabled = true;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
+  try { await audioCtx.resume(); } catch (e) {}
+  await buildGraph();
+  const dev = loadDevPrefs();
+  if (dev.out && audioCtx.setSinkId) audioCtx.setSinkId(dev.out).catch(() => {});
+
+  let vTracks = [], aTracks = [];
+  if (!demoOnly) {
+    const VIDEO = { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } };
+    const AUDIO = dev.in ? { ...AUDIO_C, deviceId: { ideal: dev.in } } : AUDIO_C;
+    const both = await tryGum({ video: VIDEO, audio: AUDIO });
+    if (both) { vTracks = both.getVideoTracks(); aTracks = both.getAudioTracks(); }
+    else {
+      const v = await tryGum({ video: VIDEO });
+      const a = await tryGum({ audio: AUDIO });
+      if (v) vTracks = v.getVideoTracks();
+      if (a) aTracks = a.getAudioTracks();
+    }
+  }
+
+  if (vTracks.length) {
+    video.srcObject = new MediaStream(vTracks);
+    try { await video.play(); } catch (e) {}
+    source = video; videoLabel = 'camera';
+    initFace();
+  } else {
+    source = makeDemoSource(); videoLabel = 'demo video';
+    if (!demoOnly) toast(window.isSecureContext ? 'camera unavailable or blocked — showing demo source' : 'camera needs https or localhost — showing demo source', 5000);
+  }
+
+  if (aTracks.length) {
+    attachMic(aTracks);
+    setSource('mic');
+  } else {
+    setSource('demo');
+    if (!demoOnly && vTracks.length) toast('microphone blocked — playing the demo track instead', 5000);
+  }
+  syncSource();
+  refreshDevices();
+  if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) navigator.mediaDevices.addEventListener('devicechange', refreshDevices);
+
+  $('#start').classList.add('gone');
+  last = performance.now();
+  requestAnimationFrame(frame);
+}
+
+/* =====================================================================
+   5. recording + playback
+   ===================================================================== */
+const rec = { mr: null, chunks: [], t0: 0, timer: null, takes: [], cur: -1 };
+
+function pickMime() {
+  // webm first: MediaRecorder's H.264 path is flaky (can silently drop the video track); mp4 is only the Safari fallback
+  const list = ['video/webm;codecs=vp8,opus', 'video/webm;codecs=vp9,opus', 'video/webm', 'video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4'];
+  return list.find(m => window.MediaRecorder && MediaRecorder.isTypeSupported(m)) || '';
+}
+
+function toggleRecord() {
+  if (rec.mr && rec.mr.state === 'recording') { rec.mr.stop(); return; }
+  if (!audioCtx || !fx.recDest) { toast('start first'); return; }
+  if (!canvas.captureStream || !window.MediaRecorder) { toast('recording isn\'t supported in this browser'); return; }
+  const stream = new MediaStream([...canvas.captureStream(60).getVideoTracks(), ...fx.recDest.stream.getAudioTracks()]);
+  const mime = pickMime();
+  let mr;
+  try { mr = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 10e6, audioBitsPerSecond: 192e3 }); }
+  catch (e) { toast('could not start the recorder'); console.warn(e); return; }
+  rec.mr = mr; rec.chunks = [];
+  mr.ondataavailable = e => { if (e.data && e.data.size) rec.chunks.push(e.data); };
+  mr.onstop = () => {
+    clearInterval(rec.timer);
+    document.body.classList.remove('recording');
+    const dur = (performance.now() - rec.t0) / 1000;
+    const type = mr.mimeType || mime || 'video/webm';
+    const blob = new Blob(rec.chunks, { type });
+    $('#recBtn').classList.remove('on'); $('#recBtn').setAttribute('aria-pressed', 'false');
+    $('#recLabel').textContent = 'rec';
+    if (blob.size < 20000 * Math.max(1, dur)) {            // a healthy take is far bigger; tiny means the browser stopped feeding frames
+      toast('that take looks empty — keep this tab visible while recording', 6000);
+      if (!blob.size) return;
+    }
+    rec.takes.push({ url: URL.createObjectURL(blob), blob, type, dur, ext: type.includes('mp4') ? 'mp4' : 'webm', n: rec.takes.length + 1 });
+    $('#takesBtn').textContent = `takes ${rec.takes.length}`;
+    openTakes(rec.takes.length - 1);
+  };
+  mr.start(1000);
+  rec.t0 = performance.now();
+  document.body.classList.add('recording');
+  $('#recBtn').classList.add('on'); $('#recBtn').setAttribute('aria-pressed', 'true');
+  const tick = () => { $('#recLabel').textContent = fmtTime((performance.now() - rec.t0) / 1000); };
+  tick(); rec.timer = setInterval(tick, 500);
+}
+
+function selectTake(i) {
+  const t = rec.takes[i]; if (!t) return;
+  rec.cur = i;
+  const v = $('#takeVideo');
+  v.src = t.url;
+  v.onloadedmetadata = () => {                               // MediaRecorder webm has no duration; nudge the player to find it
+    if (v.duration === Infinity) { v.currentTime = 1e7; v.ontimeupdate = () => { v.ontimeupdate = null; v.currentTime = 0; }; }
+  };
+  v.play().catch(() => {});
+  $('#takeInfo').textContent = `take ${t.n} · ${fmtTime(t.dur)} · ${t.ext} · ${(t.blob.size / 1048576).toFixed(1)} MB`;
+  const dl = $('#takeDl'); dl.href = t.url; dl.download = `reflection-take-${t.n}.${t.ext}`;
+  const list = $('#takeList'); list.innerHTML = '';
+  rec.takes.forEach((tk, idx) => {
+    const b = document.createElement('button');
+    b.textContent = `take ${tk.n}`; b.classList.toggle('on', idx === i);
+    b.addEventListener('click', () => selectTake(idx));
+    list.append(b);
+  });
+}
+function openTakes(i) {
+  if (!rec.takes.length) { toast('no takes yet — press R to record'); return; }
+  snd.takesOpen = true; applyMonitor();                      // mute the live sound while a take plays
+  $('#takes').classList.add('open');
+  selectTake(clamp(i === undefined ? rec.takes.length - 1 : i, 0, rec.takes.length - 1));
+}
+function closeTakes() {
+  $('#takeVideo').pause();
+  $('#takes').classList.remove('open');
+  snd.takesOpen = false; applyMonitor();
+}
+function deleteTake() {
+  const t = rec.takes[rec.cur]; if (!t) return;
+  URL.revokeObjectURL(t.url);
+  rec.takes.splice(rec.cur, 1);
+  $('#takesBtn').textContent = rec.takes.length ? `takes ${rec.takes.length}` : 'takes';
+  if (!rec.takes.length) { $('#takeVideo').removeAttribute('src'); closeTakes(); }
+  else selectTake(Math.max(0, rec.cur - 1));
+}
+
+/* =====================================================================
+   6. main loop (+ simple fps governor)
+   ===================================================================== */
+let last = 0, t0 = performance.now();
+const perf = { frames: 0, acc: 0, strikes: 0 };
+const meterBars = [...document.querySelectorAll('#meter i')];
+
+function frame(now) {
+  const dt = Math.min(.1, (now - last) / 1000); last = now;
+  const t = (now - t0) / 1000;
+
+  if (source && source.tick) source.tick(t);
+  const newFrame = uploadSource();
+  updateAudio(dt, t);
+  updateFace(now, dt);
+  updateVoiceDrive(dt);
+  updateFx();
+  stepTransition(dt);
+  resize();
+  render(t, newFrame);
+
+  [audio.voice, audio.bass, audio.mid, audio.treble].forEach((v, i) => { meterBars[i].style.transform = `scaleY(${.06 + v * .94})`; });
+
+  // governor: if we sit below ~40fps, trim the mesh detail a step (rare, and announced)
+  perf.frames++; perf.acc += dt;
+  if (perf.acc >= 2) {
+    const fps = perf.frames / perf.acc;
+    perf.strikes = fps < 40 ? perf.strikes + 1 : 0;
+    perf.frames = 0; perf.acc = 0;
+    if (perf.strikes >= 2 && params.density > 60) {
+      params.density = Math.max(60, Math.round(params.density * .8));
+      syncSlider('density');
+      toast(`running slow (${Math.round(fps)}fps) — mesh detail lowered to ${params.density}`);
+      perf.strikes = 0; persist();
+    }
+  }
+  requestAnimationFrame(frame);
+}
+
+/* =====================================================================
+   7. UI
+   ===================================================================== */
+const sliderEls = {};
+
+function buildSliders() {
+  for (const d of SLIDERS) {
+    const row = document.createElement('div'); row.className = 'row';
+    const lab = document.createElement('div'); lab.className = 'lab';
+    const name = document.createElement('span'); name.textContent = d.label;
+    const val = document.createElement('b');
+    lab.append(name, val);
+    const inp = document.createElement('input');
+    inp.type = 'range'; inp.min = d.min; inp.max = d.max; inp.step = d.step; inp.id = 'sl-' + d.k;
+    inp.setAttribute('aria-label', d.label);
+    inp.addEventListener('input', () => {
+      params[d.k] = parseFloat(inp.value);
+      if (target) target[d.k] = params[d.k];   // user wins over a running transition
+      val.textContent = (d.fmt || f2)(params[d.k]);
+      if (d.k === 'volume') applyMonitor();
+      persist();
+    });
+    row.append(lab, inp);
+    $(GROUP_EL[d.g]).append(row);
+    sliderEls[d.k] = { inp, val, d };
+  }
+}
+function syncSlider(k) {
+  const s = sliderEls[k]; if (!s) return;
+  s.inp.value = params[k];
+  s.val.textContent = (s.d.fmt || f2)(params[k]);
+}
+function syncSource() {
+  document.querySelectorAll('#srcSeg button').forEach(b => {
+    b.classList.toggle('on', b.dataset.src === snd.source);
+    if (b.dataset.src === 'mic') b.disabled = !snd.micOK;
+    if (b.dataset.src === 'file') b.disabled = !audioCtx;
+  });
+  $('#fileName').textContent = snd.source === 'file' ? snd.fileName : '';
+}
+function syncAll() {
+  SLIDERS.forEach(d => syncSlider(d.k));
+  document.querySelectorAll('#modes button').forEach((b, i) => b.classList.toggle('on', i === params.mode));
+  document.querySelectorAll('#pals button').forEach((b, i) => b.classList.toggle('on', i === params.palette));
+  const m = $('#mirror'); m.textContent = params.mirror ? 'on' : 'off'; m.classList.toggle('on', params.mirror);
+  document.querySelectorAll('#chips button').forEach(b => b.classList.toggle('on', b.dataset.name === currentLook));
+  document.querySelectorAll('#sndPresets button').forEach(b => b.classList.toggle('on', b.dataset.name === currentSound));
+}
+
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach(el => el.hidden = el.id !== 'tab-' + name);
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
+}
+
+function buildStaticUI() {
+  ['visual', 'sound'].forEach(n => {
+    const b = document.createElement('button'); b.textContent = n; b.dataset.tab = n;
+    b.addEventListener('click', () => showTab(n));
+    $('#tabs').append(b);
+  });
+  showTab('visual');
+  MODES.forEach((m, i) => {
+    const b = document.createElement('button'); b.textContent = m;
+    b.addEventListener('click', () => { params.mode = i; syncAll(); persist(); });
+    $('#modes').append(b);
+  });
+  PALETTES.forEach((p, i) => {
+    const b = document.createElement('button');
+    b.title = p.name; b.setAttribute('aria-label', 'palette ' + p.name);
+    b.style.background = `linear-gradient(90deg, ${p.c.join(',')})`;
+    b.addEventListener('click', () => { params.palette = i; syncAll(); persist(); });
+    $('#pals').append(b);
+  });
+  ['mic', 'demo', 'file'].forEach(s => {
+    const b = document.createElement('button'); b.textContent = s === 'demo' ? 'demo track' : s; b.dataset.src = s;
+    b.addEventListener('click', () => { if (s === 'file') $('#filePick').click(); else setSource(s); });
+    $('#srcSeg').append(b);
+  });
+  $('#filePick').addEventListener('change', e => { loadFile(e.target.files[0]); e.target.value = ''; });
+  $('#selIn').addEventListener('change', e => switchMic(e.target.value));
+  $('#selOut').addEventListener('change', e => switchOutput(e.target.value));
+  LOOK_NAMES.forEach(n => {
+    const b = document.createElement('button'); b.textContent = n; b.dataset.name = n;
+    b.addEventListener('click', () => applyLook(n));
+    $('#chips').append(b);
+  });
+  SOUND_NAMES.forEach(n => {
+    const b = document.createElement('button'); b.textContent = n; b.dataset.name = n;
+    b.addEventListener('click', () => applySoundPreset(n));
+    $('#sndPresets').append(b);
+  });
+  $('#mirror').addEventListener('click', () => { params.mirror = !params.mirror; syncAll(); persist(); });
+  $('#toggle').addEventListener('click', togglePanel);
+  $('#listenBtn').addEventListener('click', toggleListen);
+  $('#recBtn').addEventListener('click', toggleRecord);
+  $('#takesBtn').addEventListener('click', () => openTakes());
+  $('#takeClose').addEventListener('click', closeTakes);
+  $('#takeDel').addEventListener('click', deleteTake);
+}
+
+// looks only touch the picture; voice presets only touch the sound — the two never overwrite each other
+function applyLook(name) {
+  currentLook = name;
+  const t = {};
+  VISUAL_KEYS.forEach(k => { t[k] = LOOKS[name][k] !== undefined ? LOOKS[name][k] : VISUAL_BASE[k]; });
+  target = Object.assign(target || {}, t);
+  for (const k of DISCRETE) if (k in t) params[k] = t[k];   // snap the non-interpolatable ones
+  syncAll(); persist();
+}
+function applySoundPreset(name) {
+  currentSound = name;
+  target = Object.assign(target || {}, SOUND_PRESETS[name]);
+  syncAll(); persist();
+}
+function stepTransition(dt) {
+  if (!target) return;
+  const a = 1 - Math.pow(.001, dt / .8);   // ~0.8s ease: looks and presets glide, they don't snap
+  let busy = false;
+  for (const k in target) {
+    if (DISCRETE.has(k)) continue;
+    const diff = target[k] - params[k];
+    if (Math.abs(diff) > .002) { params[k] += diff * a; busy = true; } else params[k] = target[k];
+    syncSlider(k);
+  }
+  if (!busy) target = null;
+}
+
+function togglePanel() {
+  const p = $('#panel'), closed = p.classList.toggle('closed');
+  $('#toggle').setAttribute('aria-expanded', String(!closed));
+}
+function screenshot() {
+  canvas.toBlob(b => {
+    if (!b) return;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(b);
+    a.download = `reflection-${Date.now()}.png`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    toast('saved');
+  }, 'image/png');
+}
+
+addEventListener('keydown', e => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.target.matches && e.target.matches('select')) return;
+  if ($('#takes').classList.contains('open')) { if (e.key === 'Escape' || e.key.toLowerCase() === 't') closeTakes(); return; }
+  if ($('#start:not(.gone)')) return;
+  const k = e.key.toLowerCase();
+  if (k === 'h') togglePanel();
+  else if (k === 'u') { document.body.classList.toggle('clean'); if (document.body.classList.contains('clean')) toast('clean view — press U to bring the controls back', 2200); }
+  else if (k === 'f') { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.(); }
+  else if (k === 's') screenshot();
+  else if (k === 'r') toggleRecord();
+  else if (k === 't') openTakes();
+  else if (k === 'p') toggleListen();
+  else if (k === 'm') { params.mirror = !params.mirror; syncAll(); persist(); }
+  else if (/^[1-9]$/.test(k) && LOOK_NAMES[+k - 1]) applyLook(LOOK_NAMES[+k - 1]);
+});
+
+// idle fade of the chrome
+let idleTimer;
+function wake() {
+  document.body.classList.remove('idle');
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => { if ($('#start').classList.contains('gone')) document.body.classList.add('idle'); }, 3500);
+}
+['pointermove', 'pointerdown', 'keydown', 'touchstart'].forEach(ev => addEventListener(ev, wake, { passive: true }));
+wake();
+
+/* boot */
+buildSliders();
+buildStaticUI();
+syncAll();
+if (innerWidth > 0 && innerWidth <= 640) togglePanel();   // phones start with the panel closed
+resize();
+$('#btnStart').addEventListener('click', () => start(false));
+$('#btnDemo').addEventListener('click', () => start(true));
+</script>
+</body>
+</html>
