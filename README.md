@@ -2,7 +2,7 @@
 
 # reflection
 
-*you, weightless.*
+*you, as data.*
 
 A webcam mirror that remembers.<br>
 Your image becomes a slow, drifting, datamoshed surface, and your voice runs through a worn VHS tape.
