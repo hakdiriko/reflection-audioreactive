@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>reflection</title>
+<title>re/fraction</title>
 <link rel="icon" href="data:,">
 <style>
   :root {
@@ -141,7 +141,7 @@
 
 <div id="start">
   <div class="box">
-    <h1>reflection</h1>
+    <h1>re/fraction</h1>
     <p>you, weightless.</p>
     <div class="btns">
       <button class="btn primary" id="btnStart">start</button>
@@ -317,7 +317,7 @@ let currentLook = LOOK_NAMES[0], currentSound = SOUND_NAMES[0];
 let target = null;   // lerp target while a look / preset transition is running
 
 try {
-  const saved = JSON.parse(localStorage.getItem('reflection.v4') || 'null');
+  const saved = JSON.parse(localStorage.getItem('re-fraction.v4') || localStorage.getItem('reflection.v4') || 'null');
   if (saved && saved.params) {
     for (const k in BASE) if (typeof saved.params[k] === typeof BASE[k]) params[k] = saved.params[k];
     if (LOOKS[saved.look]) currentLook = saved.look;
@@ -329,11 +329,11 @@ let saveTimer;
 function persist() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
-    try { localStorage.setItem('reflection.v4', JSON.stringify({ params, look: currentLook, sound: currentSound })); } catch (e) {}
+    try { localStorage.setItem('re-fraction.v4', JSON.stringify({ params, look: currentLook, sound: currentSound })); } catch (e) {}
   }, 300);
 }
-function loadDevPrefs() { try { return JSON.parse(localStorage.getItem('reflection.dev') || '{}'); } catch (e) { return {}; } }
-function saveDevPrefs(o) { try { localStorage.setItem('reflection.dev', JSON.stringify({ ...loadDevPrefs(), ...o })); } catch (e) {} }
+function loadDevPrefs() { try { return JSON.parse(localStorage.getItem('re-fraction.dev') || localStorage.getItem('reflection.dev') || '{}'); } catch (e) { return {}; } }
+function saveDevPrefs(o) { try { localStorage.setItem('re-fraction.dev', JSON.stringify({ ...loadDevPrefs(), ...o })); } catch (e) {} }
 
 /* =====================================================================
    2. audio engine
@@ -857,7 +857,7 @@ function updateVoiceDrive(dt) {
 const canvas = $('#gl');
 const gl = canvas.getContext('webgl2', { alpha: false, antialias: false, depth: false, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
 if (!gl) {
-  $('#start .box').innerHTML = '<h1>reflection</h1><p>this needs WebGL2, which your browser doesn\'t support.<br>try a recent Chrome, Edge, Firefox or Safari.</p>';
+  $('#start .box').innerHTML = '<h1>re/fraction</h1><p>this needs WebGL2, which your browser doesn\'t support.<br>try a recent Chrome, Edge, Firefox or Safari.</p>';
   throw new Error('WebGL2 unavailable');
 }
 
@@ -1530,7 +1530,7 @@ function selectTake(i) {
   };
   v.play().catch(() => {});
   $('#takeInfo').textContent = `take ${t.n} · ${fmtTime(t.dur)} · ${t.ext} · ${(t.blob.size / 1048576).toFixed(1)} MB`;
-  const dl = $('#takeDl'); dl.href = t.url; dl.download = `reflection-take-${t.n}.${t.ext}`;
+  const dl = $('#takeDl'); dl.href = t.url; dl.download = `re-fraction-take-${t.n}.${t.ext}`;
   const list = $('#takeList'); list.innerHTML = '';
   rec.takes.forEach((tk, idx) => {
     const b = document.createElement('button');
@@ -1734,7 +1734,7 @@ function screenshot() {
     if (!b) return;
     const a = document.createElement('a');
     a.href = URL.createObjectURL(b);
-    a.download = `reflection-${Date.now()}.png`;
+    a.download = `re-fraction-${Date.now()}.png`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
     toast('saved');

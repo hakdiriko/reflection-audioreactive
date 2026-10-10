@@ -1,13 +1,13 @@
 <div align="center">
 
-# reflection
+# re/fraction
 
 *you, as data.*
 
 A webcam mirror that remembers.<br>
 Your image becomes a slow, drifting, datamoshed surface, and your voice runs through a worn VHS tape.
 
-[**open it in your browser**](https://hakdiriko.github.io/reflection-audioreactive/) &nbsp;·&nbsp; [run it locally](#run-locally) &nbsp;·&nbsp; [how it works](#how-it-works)
+[**open it in your browser**](https://hakdiriko.github.io/re-fraction/) &nbsp;·&nbsp; [run it locally](#run-locally) &nbsp;·&nbsp; [how it works](#how-it-works)
 
 <br>
 
@@ -21,7 +21,7 @@ Your image becomes a slow, drifting, datamoshed surface, and your voice runs thr
 
 ## what it is
 
-**reflection** is a small instrument for the browser. Turn on your camera and microphone, and the picture stops being a window and becomes a memory: when you move, the old pixels stay and are replaced slowly, one grain at a time. Nothing falls, nothing beats, nothing is in a hurry. Sound only nudges the image, with long lag, like a slow LFO.
+**re/fraction** is a small instrument for the browser. Turn on your camera and microphone, and the picture stops being a window and becomes a memory: when you move, the old pixels stay and are replaced slowly, one grain at a time. Nothing falls, nothing beats, nothing is in a hurry. Sound only nudges the image, with long lag, like a slow LFO.
 
 At the same time your voice goes through a voiceover chain of gate, compression, bit-crush, tape wow and flutter, hiss and a small room. You can listen live, record takes, and keep them.
 
@@ -34,8 +34,8 @@ Everything runs locally. Nothing is uploaded.
 It is a single `index.html` with no dependencies and no build step. Camera and mic need a secure context, so serve it from `localhost`:
 
 ```bash
-git clone https://github.com/hakdiriko/reflection-audioreactive
-cd reflection-audioreactive
+git clone https://github.com/hakdiriko/re-fraction
+cd re-fraction
 python -m http.server 8000
 ```
 

@@ -1,4 +1,4 @@
-# reflection — project handoff
+# re/fraction — project handoff
 
 A single-file browser app (`index.html`, vanilla JS + WebGL2 + Web Audio, no build step). The user turns on their webcam and mic and sees themselves rebuilt as a slow, weightless, **datamoshed** 3D surface, while their voice runs through a **VHS-style voiceover audio chain**. The processed audio plus the visuals can be recorded and played back in-app.
 
@@ -9,12 +9,12 @@ This file is the full context for continuing in a new chat. Read "What the user 
 ## 1. Running it
 
 ```bash
-cd C:\Users\hakan\reflection-audioreactive
+cd C:\Users\hakan\re-fraction
 python -m http.server 8000      # then open http://localhost:8000
 ```
 
 - Camera and mic need a secure context, so use `localhost` (not `file://`).
-- `.claude/launch.json` already defines a `reflection` server (python http.server on port 8000) for the Claude desktop preview pane.
+- `.claude/launch.json` already defines a `re-fraction` server (python http.server on port 8000) for the Claude desktop preview pane.
 - Windows quirks seen in this environment: in the Bash tool use `python`, not `python3`. A Windows `python` cannot see MSYS `/tmp` paths; use `cygpath -w` or the scratchpad directory.
 - Buttons: **start** (camera + mic) and **demo** (no permissions needed: synthetic "person" video, a generative music track, and a fake face for the voice effect).
 - Keys: `H` hide panel, `U` clean view (hides all UI, for streaming/capture), `F` fullscreen, `S` save PNG, `R` record, `T` takes, `P` listen, `1`–`5` looks, `M` mirror. Drag to orbit, wheel to zoom, double-click to reset the view.
@@ -33,14 +33,14 @@ python -m http.server 8000      # then open http://localhost:8000
 - Strip back and rebuild **one thing at a time**. They called the stacked-effects versions "a mess".
 - Their audio setup is a **PreSonus Studio 24c** with the mic in input 1. Their mic is left-only, and the interface's own direct-monitor knob sends a raw, left-panned signal to their speakers. They need to turn it toward "playback" to hear only the processed sound.
 
-Saved to Claude's memory as `feedback_reflection_aesthetic.md`. The memory folder is `C:\Users\hakan\.claude\projects\C--Users-hakan-reflection-audioreactive\memory\`.
+Saved to Claude's memory as `feedback_reflection_aesthetic.md`, in `C:\Users\hakan\.claude\projects\C--Users-hakan-reflection-audioreactive\memory\` (created while the project still had its old name, reflection-audioreactive).
 
 ---
 
 ## 3. File layout
 
 ```
-reflection-audioreactive/
+re-fraction/
 ├── index.html        # the whole app (CSS + HTML + JS, ~1700 lines)
 ├── HANDOFF.md        # this file
 └── .claude/launch.json
@@ -83,7 +83,7 @@ Key facts:
 - **Beat detection is gone**. `react` and the beat effects were removed. Effects are held at the preset values, except tape wobble, which leans slightly with `audio.slow`.
 - **Voice presets** (`SOUND_PRESETS`): `vhs voiceover` (default), `clean voice`, `radio`, `dream tape`, `crushed`. They set gate, compression, presence, tape mix, wobble, age, room, crush mix, bits and downsample. `gain` and `volume` are personal and never overwritten.
 - **Measured in the preview pane** with full-band noise: `vhs voiceover` is about 10 dB duller above 6 kHz than `clean voice`, and `radio` is about 15 dB duller, with the lows cut. L/R levels are identical. Levels across presets are within about 1 dB.
-- **Devices:** the sound tab has input and output selects. The input is chosen with `getUserMedia({deviceId})`, the output with `audioCtx.setSinkId`. Choices are saved in localStorage key `reflection.dev`. Raw mic constraints: echo cancellation, noise suppression and auto gain are all off.
+- **Devices:** the sound tab has input and output selects. The input is chosen with `getUserMedia({deviceId})`, the output with `audioCtx.setSinkId`. Choices are saved in localStorage key `re-fraction.dev` (falls back to the old `reflection.dev`). Raw mic constraints: echo cancellation, noise suppression and auto gain are all off.
 - **Latency:** `listenLatencyMs()` estimates the delay (mic track latency + `baseLatency` + `outputLatency` + chain). It is shown in the status line, with a warning above 45 ms. Recording, analysis and visuals never pass through the listen path. The mic starts with listen off so there is no feedback or delayed-voice problem.
 
 ---
@@ -133,7 +133,7 @@ Checked only with the synthetic demo face, forcing `voiceDrive.v = 1`: the face 
 - **Verified only** that the model loads and returns zero detections on a blank frame. **It has never run on a real face.**
 
 ### 5.6 Looks (visual only, keys 1–5)
-`clear` (default: true colour, mono palette), `neon` (x-ray), `ember`, `aurora`, `wire`. Looks only set visual keys, and sound presets only set sound keys. Transitions ease over about 0.8 s. Unrelated settings are persisted in localStorage `reflection.v4`.
+`clear` (default: true colour, mono palette), `neon` (x-ray), `ember`, `aurora`, `wire`. Looks only set visual keys, and sound presets only set sound keys. Transitions ease over about 0.8 s. Unrelated settings are persisted in localStorage `re-fraction.v4` (falls back to the old `reflection.v4`).
 
 ---
 
